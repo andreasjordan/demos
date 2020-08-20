@@ -7,9 +7,16 @@ I use the PowerShell module [PSAutoLab](https://github.com/pluralsight/PS-AutoLa
 
 ### Setup the lab
 
-I use the [PowerShellLab](https://github.com/pluralsight/PS-AutoLab-Env/blob/master/Configurations/PowerShellLab/Instructions.md) configuration. See details about the configuration on the linked Github page.
+I use a special configuration SqlServerLab, which is based on the [PowerShellLab](https://github.com/pluralsight/PS-AutoLab-Env/blob/master/Configurations/PowerShellLab/Instructions.md) configuration. See details about the configuration on the linked Github page.
 
-I use the script ```00_setup_lab.ps1``` to setup the lab and install the latest windows updates in one step.
+What I've changed from PowerShellLab to SqlServerLab:
+
+- SRV2 has no webserver
+- SRV3 is joined to the domain
+
+To use the configuration, just download the folder SqlServerLab to the configuration folder of PSAutoLab (should be C:\Autolab\Configurations). 
+
+I use the script ```00_setup_lab.ps1``` to setup the lab and install the latest windows updates in one step, but you can only run the installation with ```-InstallOnly``` or only install the latest windows updates with ```-PatchOnly```.
 
 The script helps solving the following problems:
 
@@ -54,12 +61,12 @@ Inside of WIN10, execute the script ```C:\setup_client.ps1```. Every PowerShell 
 
 ### Take a snapshot
 
-This is the perfect time to take a snapshot of the lab to be able to came back to this point. If you are in the coniguration folder, then simple use ```Snapshot-Lab```.  
+This is the perfect time to take a snapshot of the lab to be able to come back to this point. If you are in the configuration folder, then simply use ```Snapshot-Lab```.  
 
 
 ### Setup the SQL Server sources and demo databases
 
-I use the script ```02_setup_sources.ps1``` to add a virtual dvd drive with the ISO of the SQL Server sources and to transfer SQLServer updates and demo databases onto the client WIN10. Edit the script so it fits your needs. If you add cool new stuff then let me know, maybe I like it, too.
+I use the script ```02_setup_sources.ps1``` to copy the SQL Server sources to the harddrive of WIN10 via a virtual dvd drive for the ISO files in the resources folder. I also transfer SQL Server updates and demo databases onto the client WIN10. Edit the script so it fits your needs. If you add cool new stuff then let me know, maybe I like it, too.
 
 You want to know where the StackOverflow2010.zip comes from? Have a look at [this blog post](https://www.brentozar.com/archive/2015/10/how-to-download-the-stack-overflow-database-via-bittorrent/) from Brent Ozar.
 
@@ -67,13 +74,13 @@ You want to know where the StackOverflow2010.zip comes from? Have a look at [thi
 ### Some statements just for me
 
 	# To change the number of processors:
-	Shutdown-Lab -NoMessages ; Set-VMProcessor -VMName SRV1, SRV2, SRV3 -Count 4 ; Run-Lab -NoMessages
+	Shutdown-Lab -NoMessages ; Set-VMProcessor -VMName SRV1, SRV2 -Count 4 ; Run-Lab -NoMessages
 
 	# To take a snapshot and start the lab:
 	Snapshot-Lab -NoMessages ; Run-Lab -NoMessages
 
 	# To revert to a snapshot:
-	Stop-VM -VMName (Get-Labsummary).Computername -TurnOff ; Refresh-Lab -NoMessages ; Run-Lab -NoMessages
+	Stop-VM -VMName (Get-Labsummary).VMName -TurnOff ; Refresh-Lab -NoMessages ; Run-Lab -NoMessages
 
 	# To wipe the lab:
 	Wipe-Lab -NoMessages -Force
@@ -83,7 +90,7 @@ You want to know where the StackOverflow2010.zip comes from? Have a look at [thi
 
 	# To start the lab when in a new powershell session:
 	$ErrorActionPreference = 'Stop'
-	$AutoLabConfiguration = 'PowerShellLab'
+	$AutoLabConfiguration = 'SqlServerLab'
 	Import-Module -Name PSAutoLab
 	Push-Location -Path ((Get-PSAutoLabSetting).AutoLab + '\Configurations\' + $AutoLabConfiguration)
 	Run-Lab -NoMessages

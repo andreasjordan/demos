@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param (
-    [string]$AutoLabConfiguration = 'PowerShellLab',
+    [string]$AutoLabConfiguration = 'SqlServerLab',
     [string]$Computername = 'WIN10',
-    [string]$SQLServerISO = '*sql_server_2017*.iso',
-    [string[]]$SQLServerPatches = 'SQLServer2017-KB*-x64.exe',
-    [string[]]$SQLServerBackups = ('AdventureWorks2017.bak', 'StackOverflow2010.zip')
+    [string[]]$SQLServerIsoFiles = '*sql_server_201?*.iso',
+    [string[]]$SQLServerPatches = 'SQLServer201?-KB*-x64.exe',
+    [string[]]$SQLServerBackups = ('AdventureWorks201?.bak', 'StackOverflow2010.zip')
 )
 
 function Write-LocalWarning {
@@ -43,12 +43,29 @@ $vmCredential = New-Object -TypeName PSCredential -ArgumentList "$vmDomain\Admin
 $vmSession = New-PSSession -VMName $vmName -Credential $vmCredential
 $resourcePath = (Get-PSAutoLabSetting).AutoLab + '\Resources\'
 
-if ( $SQLServerISO ) {
-    Write-LocalHost -Message 'Configuring SQLServerISO'
-    Add-VMDvdDrive -VMName $vmName -Path (Get-Item -Path ($resourcePath + $SQLServerISO)).FullName
+if ( $SQLServerIsoFiles ) {
+    Write-LocalHost -Message 'Configuring SQLServerIsoFiles'
+
     Invoke-Command -Session $vmSession -ScriptBlock { 
-        New-SmbShare -Path D:\ -Name SQLServerSources | Out-Null
+        $null = New-Item -Path C:\SQLServerSources -ItemType Directory
+        $null = New-SmbShare -Path C:\SQLServerSources -Name SQLServerSources
         Grant-SmbShareAccess -Name SQLServerSources -AccountName "$using:vmDomain\Administrator" -AccessRight Full -Force | Out-Null     
+    }
+
+    foreach ( $isoFile in $SQLServerIsoFiles ) {
+        foreach ( $iso in Get-Item -Path ($resourcePath + $isoFile) ) {
+            $isoPath = $iso.FullName
+            $isoVersion = $iso.Name -replace '.*_sql_server_(\d{4})_.*', '$1'
+            Write-LocalHost -Message "Starting version $isoVersion"
+            Add-VMDvdDrive -VMName $vmName -Path $isoPath
+            Invoke-Command -Session $vmSession -ScriptBlock { 
+                $sourcesPath = "C:\SQLServerSources\SQLServer$using:isoVersion"
+                $null = New-Item -Path $sourcesPath -ItemType Directory
+                Copy-Item -Path D:\* -Destination $sourcesPath -Recurse
+            }
+            Get-VMDvdDrive -VMName $vmName | Remove-VMDvdDrive
+            Write-LocalHost -Message "Finished version $isoVersion"
+        }
     }
 }
 

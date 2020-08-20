@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param (
-    [string]$AutoLabConfiguration = 'PowerShellLab',
+    [string]$AutoLabConfiguration = 'SqlServerLab',
     [string]$Computername = 'WIN10',
     [string]$CustomScript = 'ORDIX_special_settings.ps1'
 )
@@ -17,6 +17,8 @@ $vmCredential = New-Object -TypeName PSCredential -ArgumentList "$vmDomain\Admin
 $vmSession = New-PSSession -VMName $vmName -Credential $vmCredential
 
 $psCode = @'
+$ErrorActionPreference = 'Stop'
+
 # configure package manager and repository for PowerShell and install favorite modules
 Install-PackageProvider -Name Nuget -Force | Out-Null
 Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
