@@ -1,0 +1,139 @@
+# Tests for the new Connect-DbaInstance
+Import-Module -Name .\dbatools.psm1 -Force
+
+# I have a test instance as a named instance with a custom port.
+# There are different ways to structure this string, but the type [DbaInstanceParameter] will parse them all and create the exact same custom object.
+# As every input for the parameter -SqlInstance will be converted into this type, we will do it beforehand to be able to have a look at the different properties.
+$instanceFullnameAsString = 'sqlix.ordix.de\pstest,14331'
+"The instance fullname as string is: " + $instanceFullnameAsString
+[DbaInstanceParameter]$instanceFromString = $instanceFullnameAsString
+"The type of the property InputObject of the object [DbaInstanceParameter]instanceFromString is: " + $instanceFromString.InputObject.GetType().ToString()
+"Some interesting properties of [DbaInstanceParameter]instanceFromString:"
+$instanceFromString | Format-List -Property Type, FullName, FullSmoName, ComputerName, InstanceName, Port, IsLocalHost, IsConnectionString
+
+# Let's use instance to get a server - that is the typical name of a smo server object of type [Microsoft.SqlServer.Management.Smo.Server]
+# This is the official documentation of the class: https://docs.microsoft.com/en-us/dotnet/api/microsoft.sqlserver.management.smo.server
+$serverFromString = Connect-DbaInstance -SqlInstance $instanceFromString
+"The type of serverFromString is: " + $serverFromString.GetType().ToString()
+"The property Name is equal to instanceFromString.FullSmoName: " + $serverFromString.Name
+"Here are the custom properties, added by Connect-DbaInstance:"
+$serverFromString | Format-List -Property IsAzure, ComputerName, DbaInstanceName, NetPort, ConnectedAs
+"Here are some properties that show we have a connection:"
+$serverFromString | Format-List -Property NetName, InstanceName, Product, VersionString
+
+# When we use this object for the parameter -SqlInstance, it is just returned.
+$serverDuplicate = Connect-DbaInstance -SqlInstance $serverFromString
+if ($serverDuplicate.Equals($serverFromString)) { "Yes, they are equal" }
+
+# If we derive a second server from the instance, we have a new server object.
+$server2 = Connect-DbaInstance -SqlInstance $instanceFromString
+if (-not $server2.Equals($serverFromString)) { "No, we are not equal" }
+
+# What do we know about the connection? Let's have a look at the connection string
+"The connection string of server ist: " + $serverFromString.ConnectionContext.ConnectionString
+
+# We can take a connection string and convert it into the type [DbaInstanceParameter]
+[DbaInstanceParameter]$instanceFromConnectionString = $serverFromString.ConnectionContext.ConnectionString
+"The type of the property InputObject of the object [DbaInstanceParameter]instanceConnString is: " + $instanceFromConnectionString.InputObject.GetType().ToString()
+"Some interesting properties of [DbaInstanceParameter]instanceConnString:"
+$instanceFromConnectionString | Format-List -Property Type, FullName, FullSmoName, ComputerName, InstanceName, Port, IsLocalHost, IsConnectionString
+
+# What is the difference?
+if ($instanceFromConnectionString.IsConnectionString) { "The object knows it is a connection string" }
+"Here is the string in the property InputObject: " + $instanceFromConnectionString.InputObject
+
+# Can we get a server from that? Yes, we can.
+$serverFromConnectionString = Connect-DbaInstance -SqlInstance $instanceFromConnectionString
+"The type of serverFromConnectionString is: " + $serverFromConnectionString.GetType().ToString()
+"The property Name is equal to instanceFromConnectionString.FullSmoName: " + $serverFromConnectionString.Name
+"Here are the custom properties, added by Connect-DbaInstance:"
+$serverFromConnectionString | Format-List -Property IsAzure, ComputerName, DbaInstanceName, NetPort, ConnectedAs
+"Here are some properties that show we have a connection:"
+$serverFromConnectionString | Format-List -Property NetName, InstanceName, Product, VersionString
+
+
+# If you want to have a look at the source code of the type [DbaInstanceParameter] you find the file here:
+# dbatools\bin\projects\dbatools\dbatools\Parameter\DbaInstanceParameter.cs
+# There we find the different constructors for this class:
+# public DbaInstanceParameter(string Name)
+# public DbaInstanceParameter(IPAddress Address)
+# public DbaInstanceParameter(PingReply Ping)
+# public DbaInstanceParameter(IPHostEntry Entry)
+# public DbaInstanceParameter(System.Data.SqlClient.SqlConnection Connection)
+# public DbaInstanceParameter(Discovery.DbaInstanceReport Report)
+# public DbaInstanceParameter(object Input)
+
+# So we can have use a connection and build a server from that.
+# But how to build a connection? Ask: https://docs.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlconnection
+# Please note the following:
+<#
+If the SqlConnection goes out of scope, it won't be closed.
+Therefore, you must explicitly close the connection by calling Close or Dispose.
+Close and Dispose are functionally equivalent.
+If the connection pooling value Pooling is set to true or yes, the underlying connection is returned back to the connection pool.
+On the other hand, if Pooling is set to false or no, the underlying connection to the server is actually closed.
+#>
+# We can build the connection from the connection string:
+[System.Data.SqlClient.SqlConnection]$connection = New-Object -TypeName System.Data.SqlClient.SqlConnection -ArgumentList $serverFromConnectionString.ConnectionContext.ConnectionString
+
+"Some of the properties:"
+$connection | Format-List -Property ConnectionString, DataSource
+
+# We can take a connection and convert it into the type [DbaInstanceParameter]
+[DbaInstanceParameter]$instanceFromConnection = $connection
+"The type of the property InputObject of the object [DbaInstanceParameter]instanceFromConnection is: " + $instanceFromConnection.InputObject.GetType().ToString()
+"Some interesting properties of [DbaInstanceParameter]instanceFromConnection:"
+$instanceFromConnection | Format-List -Property Type, FullName, FullSmoName, ComputerName, InstanceName, Port, IsLocalHost, IsConnectionString
+
+# What is the difference?
+if ($instanceFromConnection.Type -eq 'SqlConnection') { "The object knows it is a SqlConnection" }
+
+# Can we get a server from that? Yes, we can.
+$serverFromConnection = Connect-DbaInstance -SqlInstance $instanceFromConnection
+"The type of serverFromConnection is: " + $serverFromConnection.GetType().ToString()
+"The property Name is equal to instanceFromConnection.FullSmoName: " + $serverFromConnection.Name
+"Here are the custom properties, added by Connect-DbaInstance:"
+$serverFromConnection | Format-List -Property IsAzure, ComputerName, DbaInstanceName, NetPort, ConnectedAs
+"Here are some properties that show we have a connection:"
+$serverFromConnection | Format-List -Property NetName, InstanceName, Product, VersionString
+
+
+# Let's go back to where we get a server from a server with Connect-DbaInstance.
+# Inside the Connect-DbaInstance, the server is converted back to a [DbaInstanceParameter].
+# So let's do that:
+[DbaInstanceParameter]$instanceFromServer = $serverFromString
+"The type of the property InputObject of the object [DbaInstanceParameter]instanceFromServer is: " + $instanceFromServer.InputObject.GetType().ToString()
+"Some interesting properties of [DbaInstanceParameter]instanceFromServer:"
+$instanceFromServer | Format-List -Property Type, FullName, FullSmoName, ComputerName, InstanceName, Port, IsLocalHost, IsConnectionString
+
+# What is the difference?
+if ($instanceFromServer.Type -eq 'Server') { "The object knows it is a Server" }
+"The connection string is in instanceFromServer.InputObject.ConnectionContext.ConnectionString: " + $instanceFromServer.InputObject.ConnectionContext.ConnectionString
+# So to get the pure server object back, we have to use the property InputObject
+$serverFromInstanceFromServer = $instanceFromServer.InputObject
+if ($serverFromInstanceFromServer.Equals($serverFromString)) { "Yes we are equal" }
+
+
+# Now let's use sql.connection.experimental
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+
+$expServerFromString = Connect-DbaInstance -SqlInstance $instanceFromString -Debug
+"The property Name is equal to instance.FullSmoName: " + $expServerFromString.Name
+"The server: $expServerFromString"
+"Here are the custom properties, added by Connect-DbaInstance:"
+$expServerFromString | Format-List -Property IsAzure, ComputerName, DbaInstanceName, NetPort, ConnectedAs
+"Here are some properties that show we have a connection:"
+$expServerFromString | Format-List -Property NetName, InstanceName, Product, VersionString
+
+$expServerFromStringDuplicate = Connect-DbaInstance -SqlInstance $expServerFromString -Debug
+if ($expServerFromStringDuplicate.Equals($expServerFromString)) { "Yes, they are equal" }
+
+# Test with connection string
+$expServerFromConnectionString = Connect-DbaInstance -SqlInstance $instanceFromConnectionString -Debug
+"The type of expServerFromConnectionString is: " + $expServerFromConnectionString.GetType().ToString()
+"The property Name is equal to instance.FullSmoName: " + $expServerFromConnectionString.Name
+"Here are the custom properties, added by Connect-DbaInstance:"
+$expServerFromConnectionString | Format-List -Property IsAzure, ComputerName, DbaInstanceName, NetPort, ConnectedAs
+"Here are some properties that show we have a connection:"
+$expServerFromConnectionString | Format-List -Property NetName, InstanceName, Product, VersionString
+
