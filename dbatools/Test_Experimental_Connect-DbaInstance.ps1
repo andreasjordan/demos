@@ -173,4 +173,14 @@ $server.ConnectionContext
 $connStringBuilder = New-Object -TypeName System.Data.SqlClient.SqlConnectionStringBuilder -ArgumentList $server.ConnectionContext.ConnectionString
 # Sorry, not allowed:
 $server.ConnectionContext.ApplicationName = $connStringBuilder['Application Name']
+$server.ConnectionContext.DatabaseName = $connStringBuilder['Initial Catalog']
+# But we have the info here:
+$server.ConnectionContext.SqlConnectionObject.Database
 
+
+# Use parameter to build server
+$server = Connect-DbaInstance -SqlInstance $instanceFullnameAsString -Debug -BatchSeparator XX -ConnectTimeout 20 -StatementTimeout 30
+$server.ConnectionContext.ConnectionString
+$server.ConnectionContext.StatementTimeout
+$server.ConnectionContext.ConnectTimeout
+$server.ConnectionContext.BatchSeparator
