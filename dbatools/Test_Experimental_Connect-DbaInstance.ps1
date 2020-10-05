@@ -137,3 +137,32 @@ $expServerFromConnectionString | Format-List -Property IsAzure, ComputerName, Db
 "Here are some properties that show we have a connection:"
 $expServerFromConnectionString | Format-List -Property NetName, InstanceName, Product, VersionString
 
+
+
+
+##################
+# Work on New-DbaConnectionString
+##################
+
+Import-Module -Name .\dbatools.psm1 -Force
+
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+
+$connectionString = New-DbaConnectionString -SqlInstance $instanceFullnameAsString -Debug
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+$server.ConnectionContext.ConnectionString
+New-DbaConnectionString -SqlInstance $server -Debug
+
+$credentialUser1 = New-Object -TypeName System.Management.Automation.PSCredential('user1', ("P@ssw0rd" | ConvertTo-SecureString -AsPlainText -Force))
+[DbaInstanceParameter]$instanceAzure = "sqlserver-db-dbatools.database.windows.net"
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database "database-db-dbatools" -Debug
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+
+$credentialAzAdUser = Get-Credential -Message 'Enter credential of a Azure AD account that has access to the Azure database'
+[DbaInstanceParameter]$instanceAzure = "mdoserver.database.windows.net"
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialAzAdUser -Database "mdodb" -Debug
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+
+# Full test of all parameters of New-DbaConnectionString
+New-DbaConnectionString -SqlInstance X -ApplicationIntent ReadOnly -ConnectTimeout 10 -Database DB -EncryptConnection -FailoverPartner FP -MaxPoolSize 20 -MinPoolSize 2 -MultipleActiveResultSets -MultiSubnetFailover -NonPooledConnection -PacketSize 1234 -PooledConnectionLifetime 240 -TrustServerCertificate -WorkstationId WID -Debug -LockTimeout 60
+
