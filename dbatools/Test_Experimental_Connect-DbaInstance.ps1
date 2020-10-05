@@ -166,3 +166,11 @@ $server = Connect-DbaInstance -SqlInstance $connectionString -Debug
 # Full test of all parameters of New-DbaConnectionString
 New-DbaConnectionString -SqlInstance X -ApplicationIntent ReadOnly -ConnectTimeout 10 -Database DB -EncryptConnection -FailoverPartner FP -MaxPoolSize 20 -MinPoolSize 2 -MultipleActiveResultSets -MultiSubnetFailover -NonPooledConnection -PacketSize 1234 -PooledConnectionLifetime 240 -TrustServerCertificate -WorkstationId WID -Debug -LockTimeout 60
 
+$server.ConnectionContext.SqlConnectionObject
+$server.ConnectionContext
+
+# Can we update the individual properties from the connection string?
+$connStringBuilder = New-Object -TypeName System.Data.SqlClient.SqlConnectionStringBuilder -ArgumentList $server.ConnectionContext.ConnectionString
+# Sorry, not allowed:
+$server.ConnectionContext.ApplicationName = $connStringBuilder['Application Name']
+
