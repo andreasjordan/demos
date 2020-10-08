@@ -184,3 +184,55 @@ $server.ConnectionContext.ConnectionString
 $server.ConnectionContext.StatementTimeout
 $server.ConnectionContext.ConnectTimeout
 $server.ConnectionContext.BatchSeparator
+
+
+
+####
+# Changing database context on Azure
+####
+Import-Module -Name .\dbatools.psm1 -Force
+$credentialUser1 = New-Object -TypeName System.Management.Automation.PSCredential('user1', ("P@ssw0rd" | ConvertTo-SecureString -AsPlainText -Force))
+[DbaInstanceParameter]$instanceAzure = "sqlserver-db-dbatools.database.windows.net"
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database "database-db-dbatools"
+$server = Connect-DbaInstance -SqlInstance $connectionString
+$server.ConnectionContext.DatabaseName
+$server.ConnectionContext.CurrentDatabase
+$server.Query('SELECT db_name() as dbname').dbname
+Invoke-DbaQuery -SqlInstance $server -Query 'SELECT db_name() as dbname' -As SingleValue
+# They all return: database-db-dbatools
+
+Invoke-DbaQuery -SqlInstance $server -Database 'test-dbatools' -Query 'SELECT db_name() as dbname' -As SingleValue -Debug
+# Returns: test-dbatools
+
+$server.ConnectionContext.DatabaseName
+$server.ConnectionContext.CurrentDatabase
+$server.Query('SELECT db_name() as dbname').dbname
+# They all return: database-db-dbatools
+
+##### New code path:
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+$credentialUser1 = New-Object -TypeName System.Management.Automation.PSCredential('user1', ("P@ssw0rd" | ConvertTo-SecureString -AsPlainText -Force))
+[DbaInstanceParameter]$instanceAzure = "sqlserver-db-dbatools.database.windows.net"
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database "database-db-dbatools"
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+$server.ConnectionContext.DatabaseName
+$server.ConnectionContext.CurrentDatabase
+$server.Query('SELECT db_name() as dbname').dbname
+Invoke-DbaQuery -SqlInstance $server -Query 'SELECT db_name() as dbname' -As SingleValue
+# They all but the first return: database-db-dbatools
+# $server.ConnectionContext.DatabaseName is empty because server was build from connection string
+
+Invoke-DbaQuery -SqlInstance $server -Database 'test-dbatools' -Query 'SELECT db_name() as dbname' -As SingleValue -Debug
+# Returns: test-dbatools
+
+$server.ConnectionContext.DatabaseName
+$server.ConnectionContext.CurrentDatabase
+$server.Query('SELECT db_name() as dbname').dbname
+# They all but the first return: database-db-dbatools
+$server.Query('SELECT @@SPID as spid').spid
+
+
+
+Invoke-DbaQuery -SqlInstance $server -Query 'SELECT @@SPID as spid' -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database 'test-dbatools' -Query 'SELECT @@SPID as spid' -As SingleValue -Debug
