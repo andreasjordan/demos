@@ -185,7 +185,16 @@ $server.ConnectionContext.StatementTimeout
 $server.ConnectionContext.ConnectTimeout
 $server.ConnectionContext.BatchSeparator
 
-
+####
+# Working with registered servers
+####
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+$regServer2016 = Get-DbaRegisteredServer -Group V2016
+$regServer2016[0] | fl *
+[DbaInstanceParameter]$testInstance = $regServer2016[0]
+$testInstance.InputObject.ConnectionString
+$regServer2016 | Connect-DbaInstance -Debug
 
 ####
 # Changing database context on Azure
