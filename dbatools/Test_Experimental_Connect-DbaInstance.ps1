@@ -1,6 +1,122 @@
 # Tests for the new Connect-DbaInstance
 Import-Module -Name .\dbatools.psm1 -Force
 
+# Let's start again
+# Let's start with the central part: Connection pooling
+
+$instanceName = 'SRV1\SQL2016'
+
+'Test 1:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server.ConnectionContext.ProcessID
+}
+
+'Test 2:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server.ConnectionContext.ApplicationName = 'Test'
+    $server.ConnectionContext.ProcessID
+}
+
+'Test 3:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceName;Integrated Security=True;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ProcessID
+}
+
+'Test 4:'
+1..5 | ForEach-Object -Process {
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceName
+    $connInfo.ApplicationName = 'Test'
+    $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+    $server.ConnectionContext.ProcessID
+}
+
+
+# There a five different objects, but only one connection:
+$serverList[0].Equals($serverList[1])
+$serverList[0].ConnectionContext.Equals($serverList[1].ConnectionContext)
+$serverList[0].ConnectionContext.SqlConnectionObject.Equals($serverList[1].ConnectionContext.SqlConnectionObject)
+
+
+$connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceName
+$connInfo.AdditionalParameters = 'MultipleActiveResultSets=True'
+$connInfo.ConnectionString
+
+
+$srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+$server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+$server.ConnectionContext.ProcessID
+$server.ConnectionContext.ConnectionString
+
+$connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceName
+$connInfo.ApplicationName = 'Test'
+$connInfo.DatabaseName = 'tempdb'
+$srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+$serverTempdb = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+$serverTempdb.ConnectionContext.ProcessID
+
+$server.ConnectionContext.SqlConnectionObject
+
+
+# Test with Connect-DbaInstance
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+$server = Connect-DbaInstance -SqlInstance $instanceName -Debug
+$server.ConnectionContext.ProcessID
+$server = Connect-DbaInstance -SqlInstance $instanceName -Database tempdb -Debug
+$server.ConnectionContext.ProcessID
+
+
+$instanceName = 'SRV1\SQL2016'
+
+'Test 1:'
+1..3 | ForEach-Object -Process {
+    $server = Connect-DbaInstance -SqlInstance $instanceName
+    $server.ConnectionContext.ProcessID
+}
+
+'Test 2:'
+1..3 | ForEach-Object -Process {
+    $server = Connect-DbaInstance -SqlInstance $instanceName
+    $server.ConnectionContext.ProcessID
+    $server = Connect-DbaInstance -SqlInstance $instanceName -Database tempdb
+    $server.ConnectionContext.ProcessID
+}
+
+'Test 3:'
+1..3 | ForEach-Object -Process {
+    Invoke-DbaQuery -SqlInstance $instanceName -Query 'SELECT @@SPID' -As SingleValue
+}
+
+'Test 4:'
+1..3 | ForEach-Object -Process {
+    Invoke-DbaQuery -SqlInstance $instanceName -Query 'SELECT @@SPID' -As SingleValue
+    Invoke-DbaQuery -SqlInstance $instanceName -Database tempdb -Query 'SELECT @@SPID' -As SingleValue
+}
+
+'Test 5:'
+$server = Connect-DbaInstance -SqlInstance $instanceName
+1..3 | ForEach-Object -Process {
+    Invoke-DbaQuery -SqlInstance $server -Query 'SELECT @@SPID' -As SingleValue
+    Invoke-DbaQuery -SqlInstance $server -Database tempdb -Query 'SELECT @@SPID' -As SingleValue
+}
+
+
+
+Invoke-DbaQuery -SqlInstance $instanceName -Query 'SELECT @@SPID' -As SingleValue -Debug
+
+$server = Connect-DbaInstance -SqlInstance $instanceName
+Invoke-DbaQuery -SqlInstance $server -Query 'SELECT @@SPID' -As SingleValue -Debug
+
+
+
+$server = Connect-DbaInstance -SqlInstance '192.168.6.29\pstest,14331'
+
 # I have a test instance as a named instance with a custom port.
 # There are different ways to structure this string, but the type [DbaInstanceParameter] will parse them all and create the exact same custom object.
 # As every input for the parameter -SqlInstance will be converted into this type, we will do it beforehand to be able to have a look at the different properties.
@@ -185,6 +301,25 @@ $server.ConnectionContext.StatementTimeout
 $server.ConnectionContext.ConnectTimeout
 $server.ConnectionContext.BatchSeparator
 
+
+
+####
+# Simple connects
+####
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+$server = Connect-DbaInstance -SqlInstance srv1\sql2016 -Debug
+$server.ConnectionContext.ProcessID
+
+
+
+$conStr = New-DbaConnectionString -SqlInstance srv1\sql2016 -Debug
+$conStr = 'Data Source=srv1\sql2016;Integrated Security=True'
+$server = Connect-DbaInstance -SqlInstance $conStr -Debug
+$server.ConnectionContext.ProcessID
+
+
+
 ####
 # Working with registered servers
 ####
@@ -194,7 +329,34 @@ $regServer2016 = Get-DbaRegisteredServer -Group V2016
 $regServer2016[0] | fl *
 [DbaInstanceParameter]$testInstance = $regServer2016[0]
 $testInstance.InputObject.ConnectionString
-$regServer2016 | Connect-DbaInstance -Debug
+$server = $regServer2016[0] | Connect-DbaInstance -Debug -ConnectTimeout 35
+$server.ConnectionContext.SqlConnectionObject.ConnectionTimeout
+$server.ConnectionContext.ConnectionString
+$server.ConnectionContext.ProcessID
+
+$server = $regServer2016[0] | Connect-DbaInstance -Debug
+$server.ConnectionContext.ProcessID
+
+$serverX = Connect-DbaInstance -SqlInstance $server
+$serverX.ConnectionContext.ProcessID
+# Connection is reused
+
+$serverX = Connect-DbaInstance -SqlInstance $server -ConnectTimeout 35 -Debug
+$serverX.ConnectionContext.ProcessID
+# Connection is not reused
+
+$server.ConnectionContext.SqlConnectionObject.CurrentDatabase
+Invoke-DbaQuery -SqlInstance $server -Query 'SELECT @@SPID' -as SingleValue -Debug
+# Connection is reused
+
+Invoke-DbaQuery -SqlInstance $server -Database tempdb -Query 'SELECT @@SPID' -as SingleValue -Debug
+# Connection is not reused
+
+$serverTempdb = Connect-DbaInstance -SqlInstance SRV1\SQl2016 -Database tempdb
+Invoke-DbaQuery -SqlInstance $serverTempdb -Database tempdb -Query 'SELECT @@SPID' -as SingleValue -Debug
+$serverTempdb.ConnectionContext.currentdatabase
+$serverTempdb.ConnectionContext.SqlConnectionObject.database
+
 
 ####
 # Changing database context on Azure
