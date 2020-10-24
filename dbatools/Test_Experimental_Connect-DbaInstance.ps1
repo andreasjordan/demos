@@ -1,5 +1,6 @@
 # Tests for the new Connect-DbaInstance
 Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
 
 # Let's start again
 # Let's start with the central part: Connection pooling
@@ -84,6 +85,8 @@ $instanceName = 'SRV1\SQL2016'
 1..3 | ForEach-Object -Process {
     $server = Connect-DbaInstance -SqlInstance $instanceName
     $server.ConnectionContext.ProcessID
+    $server = Connect-DbaInstance -SqlInstance $instanceName -Database master
+    $server.ConnectionContext.ProcessID
     $server = Connect-DbaInstance -SqlInstance $instanceName -Database tempdb
     $server.ConnectionContext.ProcessID
 }
@@ -106,12 +109,83 @@ $server = Connect-DbaInstance -SqlInstance $instanceName
     Invoke-DbaQuery -SqlInstance $server -Database tempdb -Query 'SELECT @@SPID' -As SingleValue
 }
 
+$server.ConnectionContext.SqlConnectionObject
+
+$server.ConnectionContext
+
+$server2 = Connect-DbaInstance -SqlInstance $server
+$server2.ConnectionContext.ProcessID
+$server2.ConnectionContext.CurrentDatabase
+$server3 = Connect-DbaInstance -SqlInstance $server -Database tempdb
+$server3.ConnectionContext.ProcessID
+$server3.ConnectionContext.CurrentDatabase
+
+####
+# Work in Azure
+####
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+
+$credentialUser1 = New-Object -TypeName System.Management.Automation.PSCredential('user1', ("P@ssw0rd" | ConvertTo-SecureString -AsPlainText -Force))
+[DbaInstanceParameter]$instanceAzure = "sqlserver-db-dbatools.database.windows.net"
+$Database1 = 'database-db-dbatools'
+$Database2 = 'test-dbatools'
+$server1 = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database $Database1 -Debug
+Invoke-DbaQuery -SqlInstance $server1 -Query 'SELECT @@SPID' -As SingleValue -Debug
+Invoke-DbaQuery -SqlInstance $server1 -Database $Database2 -Query 'SELECT @@SPID' -As SingleValue -Debug
+
+'Test 1:'
+$server1 = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database $Database1
+$server2 = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database $Database2
+$sql = "SELECT CAST(@@SPID AS VARCHAR) + '   ' + (SELECT CAST(COUNT(*) AS VARCHAR) FROM sys.dm_exec_sessions) + '   ' + DB_NAME() + '   ' + (SELECT CAST(MAX(a) AS VARCHAR) FROM dbo.Test)"
+1..3 | ForEach-Object -Process {
+    Invoke-DbaQuery -SqlInstance $server1 -Query $sql -As SingleValue
+    Invoke-DbaQuery -SqlInstance $server2 -Query $sql -As SingleValue
+    Invoke-DbaQuery -SqlInstance $server1 -Database $Database2 -Query $sql -As SingleValue
+    Invoke-DbaQuery -SqlInstance $server2 -Database $Database1 -Query $sql -As SingleValue
+}
+
+1..102 | ForEach-Object -Process {
+    Invoke-DbaQuery -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database $Database1 -Query "SELECT @@SPID" -As SingleValue
+}
 
 
-Invoke-DbaQuery -SqlInstance $instanceName -Query 'SELECT @@SPID' -As SingleValue -Debug
+Invoke-DbaQuery -SqlInstance $server1 -Query 'SELECT CAST(MAX(a) AS VARCHAR) FROM dbo.Test' -As SingleValue
+
+
+Invoke-DbaQuery -SqlInstance $server1 -Query 'SELECT COUNT(*) FROM sys.dm_exec_sessions' | ogv
+
+
+
+
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialUser1 -Database "database-db-dbatools" -Debug
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+
+$credentialAzAdUser = Get-Credential -Message 'Enter credential of a Azure AD account that has access to the Azure database'
+[DbaInstanceParameter]$instanceAzure = "mdoserver.database.windows.net"
+$connectionString = New-DbaConnectionString -SqlInstance $instanceAzure -SqlCredential $credentialAzAdUser -Database "mdodb" -Debug
+$server = Connect-DbaInstance -SqlInstance $connectionString -Debug
+
+$server = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialAzAdUser -Database "mdodb" -Debug
+$server.ConnectionContext.ProcessID
+
+
+######
+# Connection objects
+######
 
 $server = Connect-DbaInstance -SqlInstance $instanceName
-Invoke-DbaQuery -SqlInstance $server -Query 'SELECT @@SPID' -As SingleValue -Debug
+$conn = $server.ConnectionContext.SqlConnectionObject
+
+$server1 = Connect-DbaInstance -SqlInstance $conn
+$server2 = Connect-DbaInstance -SqlInstance $conn
+$server3 = Connect-DbaInstance -SqlInstance $conn
+
+$server1.ConnectionContext.ProcessID
+$server2.ConnectionContext.ProcessID
+$server3.ConnectionContext.ProcessID
+
+# Connection pooling does work - we have only one connections
 
 
 
@@ -327,6 +401,7 @@ Import-Module -Name .\dbatools.psm1 -Force
 Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
 $regServer2016 = Get-DbaRegisteredServer -Group V2016
 $regServer2016[0] | fl *
+$regServer2016[0] | gm
 [DbaInstanceParameter]$testInstance = $regServer2016[0]
 $testInstance.InputObject.ConnectionString
 $server = $regServer2016[0] | Connect-DbaInstance -Debug -ConnectTimeout 35
@@ -356,6 +431,21 @@ $serverTempdb = Connect-DbaInstance -SqlInstance SRV1\SQl2016 -Database tempdb
 Invoke-DbaQuery -SqlInstance $serverTempdb -Database tempdb -Query 'SELECT @@SPID' -as SingleValue -Debug
 $serverTempdb.ConnectionContext.currentdatabase
 $serverTempdb.ConnectionContext.SqlConnectionObject.database
+
+
+
+$regServer2016 = Get-DbaRegisteredServer -Group V2016
+
+$server1 = Connect-DbaInstance -SqlInstance $regServer2016[0]
+$server2 = Connect-DbaInstance -SqlInstance $regServer2016[0]
+$server3 = Connect-DbaInstance -SqlInstance $regServer2016[0]
+
+$server1.ConnectionContext.ProcessID
+$server2.ConnectionContext.ProcessID
+$server3.ConnectionContext.ProcessID
+
+# Connection pooling does not work - we have three different connections
+
 
 
 ####
