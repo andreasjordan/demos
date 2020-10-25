@@ -2,40 +2,395 @@
 Import-Module -Name .\dbatools.psm1 -Force
 Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
 
-# Let's start again
-# Let's start with the central part: Connection pooling
 
-$instanceName = 'SRV1\SQL2016'
+# Setup the instances
+
+$instanceNameLocal = 'SRV1\SQL2016'
+$instanceNameAzure = 'sqlserver-db-dbatools.database.windows.net'
+
+[DbaInstanceParameter]$instanceLocal = $instanceNameLocal
+[DbaInstanceParameter]$instanceAzure = $instanceNameAzure
+
+
+# Setup the databases
+
+$databaseNameLocal1 = 'TestDB1'
+$databaseNameLocal2 = 'TestDB2'
+
+$databaseNameAzure1 = 'database-db-dbatools'
+$databaseNameAzure2 = 'test-dbatools'
+
+
+# Setup the credentials
+
+# Get-Credential -Message 'Local SQL Login' -UserName LocalSql | Export-Clixml -Path C:\Credentials\LocalSql.xml
+$credentialLocalSql = Import-Clixml -Path C:\Credentials\LocalSql.xml
+
+# Get-ADUser -Filter { Name -eq 'SQLServer' }
+# Get-Credential -Message 'Local AD User' -UserName SQLServer@Company.Pri | Export-Clixml -Path C:\Credentials\LocalAdUser.xml
+$credentialLocalAdUser = Import-Clixml -Path C:\Credentials\LocalAdUser.xml
+
+# Get-Credential -Message 'Azure SQL Admin' | Export-Clixml -Path C:\Credentials\AzureSqlAdmin.xml
+$credentialAzureAdmin = Import-Clixml -Path C:\Credentials\AzureSqlAdmin.xml
+
+# Get-Credential -Message 'Azure SQL User' -UserName user1 | Export-Clixml -Path C:\Credentials\AzureSqlUser.xml
+$credentialAzureSqlUser = Import-Clixml -Path C:\Credentials\AzureSqlUser.xml
+
+# Get-Credential -Message 'Azure AD User' | Export-Clixml -Path C:\Credentials\AzureAdUser.xml
+$credentialAzureAdUser = Import-Clixml -Path C:\Credentials\AzureAdUser.xml
+[string]$tenant = Get-Content -Path C:\Credentials\Tenant.txt
+
+
+# Setup local test databases
+
+$server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceLocal
+if ($server.LoginMode -ne 'Mixed') {
+    $server.LoginMode = 'Mixed'
+    $server.Alter()
+    $null = Restart-DbaService -ComputerName $instanceLocal.ComputerName -InstanceName $instanceLocal.InstanceName
+}
+try { $server.Query("DROP DATABASE $databaseNameLocal1") } catch {}
+try { $server.Query("DROP DATABASE $databaseNameLocal2") } catch {}
+$null = Get-DbaLogin -SqlInstance $server -Login $credentialLocalSql.UserName | Remove-DbaLogin -Force
+$server.Query("CREATE DATABASE $databaseNameLocal1")
+$server.Query("CREATE DATABASE $databaseNameLocal2")
+$server.Query("CREATE TABLE $databaseNameLocal1.dbo.TestTable(a int)")
+$server.Query("CREATE TABLE $databaseNameLocal2.dbo.TestTable(a int)")
+$server.Query("INSERT INTO $databaseNameLocal1.dbo.TestTable VALUES (1)")
+$server.Query("INSERT INTO $databaseNameLocal2.dbo.TestTable VALUES (2)")
+$null = New-DbaLogin -SqlInstance $server -Login $credentialLocalSql.UserName -SecurePassword $credentialLocalSql.Password
+$null = New-DbaDbUser -SqlInstance $server -Database $databaseNameLocal1 -Username $credentialLocalSql.UserName -Login $credentialLocalSql.UserName
+$null = New-DbaDbUser -SqlInstance $server -Database $databaseNameLocal2 -Username $credentialLocalSql.UserName -Login $credentialLocalSql.UserName
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameLocal1 -Role db_owner -User $credentialLocalSql.UserName -Confirm:$false
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameLocal2 -Role db_owner -User $credentialLocalSql.UserName -Confirm:$false
+
+
+
+# Let's start with the central part: Test connection pooling with different methods of creating the smo server object
+
+######
+# Local database with integrated security
+######
 
 'Test 1:'
 1..5 | ForEach-Object -Process {
-    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
     $server.ConnectionContext.ProcessID
 }
+# connection pooling works
 
 'Test 2:'
 1..5 | ForEach-Object -Process {
-    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
     $server.ConnectionContext.ApplicationName = 'Test'
     $server.ConnectionContext.ProcessID
 }
+# connection pooling works
 
 'Test 3:'
 1..5 | ForEach-Object -Process {
-    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceName
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
     $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
-    $server.ConnectionContext.ConnectionString = "Data Source=$instanceName;Integrated Security=True;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceNameLocal;Integrated Security=True;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
     $server.ConnectionContext.ProcessID
 }
+# connection pooling does NOT work
 
 'Test 4:'
 1..5 | ForEach-Object -Process {
-    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceName
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceNameLocal
     $connInfo.ApplicationName = 'Test'
     $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
     $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
     $server.ConnectionContext.ProcessID
 }
+# connection pooling works
+
+
+######
+# Local database with different AD user
+######
+
+'Test 1:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.ConnectAsUser = $true
+    $server.ConnectionContext.ConnectAsUserName = $credentialLocalAdUser.UserName
+    $server.ConnectionContext.ConnectAsUserPassword = $credentialLocalAdUser.GetNetworkCredential().Password
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 2:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.ConnectAsUser = $true
+    $server.ConnectionContext.ConnectAsUserName = $credentialLocalAdUser.UserName
+    $server.ConnectionContext.ConnectAsUserPassword = $credentialLocalAdUser.GetNetworkCredential().Password
+    $server.ConnectionContext.ApplicationName = 'Test'
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 3:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.ConnectAsUser = $true
+    $server.ConnectionContext.ConnectAsUserName = $credentialLocalAdUser.UserName
+    $server.ConnectionContext.ConnectAsUserPassword = $credentialLocalAdUser.GetNetworkCredential().Password
+    $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceNameLocal;Integrated Security=True;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling does NOT work
+# wrong security context because setting the connection string overrides the ConnectAsUser* properties
+
+'Test 4:'
+1..5 | ForEach-Object -Process {
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceNameLocal
+    $connInfo.ApplicationName = 'Test'
+    $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+    $srvConn.ConnectAsUser = $true
+    $srvConn.ConnectAsUserName = $credentialLocalAdUser.UserName
+    $srvConn.ConnectAsUserPassword = $credentialLocalAdUser.GetNetworkCredential().Password
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+
+######
+# Local database with SQL login
+######
+
+'Test 1:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialLocalSql.UserName
+    $server.ConnectionContext.Password = $credentialLocalSql.GetNetworkCredential().Password
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 2:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialLocalSql.UserName
+    $server.ConnectionContext.Password = $credentialLocalSql.GetNetworkCredential().Password
+    $server.ConnectionContext.ApplicationName = 'Test'
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 3:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameLocal
+    $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceNameLocal;User ID=$($credentialLocalSql.UserName);Password=$($credentialLocalSql.GetNetworkCredential().Password);MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling does NOT work
+
+'Test 4:'
+1..5 | ForEach-Object -Process {
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceNameLocal
+    $connInfo.UserName = $credentialLocalSql.UserName
+    $connInfo.SecurePassword = $credentialLocalSql.Password
+    $connInfo.ApplicationName = 'Test'
+    $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+
+######
+# Azure Database with SQL login
+######
+
+'Test 1:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialAzureSqlUser.UserName
+    $server.ConnectionContext.Password = $credentialAzureSqlUser.GetNetworkCredential().Password
+    $server.ConnectionContext.DatabaseName = $databaseNameAzure1
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 2:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialAzureSqlUser.UserName
+    $server.ConnectionContext.Password = $credentialAzureSqlUser.GetNetworkCredential().Password
+    $server.ConnectionContext.DatabaseName = $databaseNameAzure1
+    $server.ConnectionContext.ApplicationName = 'Test'
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 3:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceNameAzure;Initial Catalog=$databaseNameAzure1;User ID=$($credentialAzureSqlUser.UserName);Password=$($credentialAzureSqlUser.GetNetworkCredential().Password);MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling does NOT work
+
+'Test 4:'
+1..5 | ForEach-Object -Process {
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceNameAzure
+    $connInfo.UserName = $credentialAzureSqlUser.UserName
+    $connInfo.SecurePassword = $credentialAzureSqlUser.Password
+    $connInfo.DatabaseName = $databaseNameAzure1
+    $connInfo.ApplicationName = 'Test'
+    $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+
+######
+# Azure Database with AD login
+######
+
+'Test 1:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.Authentication = [Microsoft.SqlServer.Management.Common.SqlConnectionInfo+AuthenticationMethod]::ActiveDirectoryPassword
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialAzureAdUser.UserName
+    $server.ConnectionContext.Password = $credentialAzureAdUser.GetNetworkCredential().Password
+    $server.ConnectionContext.DatabaseName = $databaseNameAzure1
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 2:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.Authentication = [Microsoft.SqlServer.Management.Common.SqlConnectionInfo+AuthenticationMethod]::ActiveDirectoryPassword
+    $server.ConnectionContext.LoginSecure = $false
+    $server.ConnectionContext.Login = $credentialAzureAdUser.UserName
+    $server.ConnectionContext.Password = $credentialAzureAdUser.GetNetworkCredential().Password
+    $server.ConnectionContext.DatabaseName = $databaseNameAzure1
+    $server.ConnectionContext.ApplicationName = 'Test'
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+'Test 3:'
+1..5 | ForEach-Object -Process {
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $instanceNameAzure
+    $server.ConnectionContext.NonPooledConnection = $false  # This doesn't help
+    $server.ConnectionContext.ConnectionString = "Data Source=$instanceNameAzure;Initial Catalog=$databaseNameAzure1;Authentication=Active Directory Password;User ID=$($credentialAzureAdUser.UserName);Password=$($credentialAzureAdUser.GetNetworkCredential().Password);MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=False;Application Name=Test"
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling does NOT work
+
+'Test 4:'
+1..5 | ForEach-Object -Process {
+    $connInfo = New-Object Microsoft.SqlServer.Management.Common.SqlConnectionInfo $instanceNameAzure
+    $connInfo.Authentication = [Microsoft.SqlServer.Management.Common.SqlConnectionInfo+AuthenticationMethod]::ActiveDirectoryPassword
+    $connInfo.UserName = $credentialAzureAdUser.UserName
+    $connInfo.SecurePassword = $credentialAzureAdUser.Password
+    $connInfo.DatabaseName = $databaseNameAzure2
+    $connInfo.ApplicationName = 'Test'
+    $srvConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connInfo
+    $server = New-Object Microsoft.SqlServer.Management.Smo.Server $srvConn
+    $server.ConnectionContext.ProcessID
+}
+$server.ConnectionContext.TrueLogin
+# connection pooling works
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureAdUser -Database $databaseNameAzure1 -Debug
+
+
+#####
+# Summary of authentification when using SqlConnectionInfo -> ServerConnection -> Server
+#####
+
+# Local database with integrated security:
+# Do nothing
+
+# Local database with different AD user:
+# configure ServerConnection.ConnectAsUser = $true / ServerConnection.ConnectAsUserName = $cred.UserName / ServerConnection.ConnectAsUserPassword = $cred.GetNetworkCredential().Password
+
+# Local database with SQL login:
+# configure SqlConnectionInfo.UserName = $cred.UserName / SqlConnectionInfo.SecurePassword = $cred.Password
+
+# Azure Database with SQL login:
+# configure SqlConnectionInfo.UserName = $cred.UserName / SqlConnectionInfo.SecurePassword = $cred.Password
+
+# Azure Database with AD login:
+# configure SqlConnectionInfo.UserName = $cred.UserName / SqlConnectionInfo.SecurePassword = $cred.Password / SqlConnectionInfo.Authentication = [Microsoft.SqlServer.Management.Common.SqlConnectionInfo+AuthenticationMethod]::ActiveDirectoryPassword
+
+
+#####
+# test all authentification with dbatools
+#####
+Import-Module -Name .\dbatools.psm1 -Force
+Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameLocal -Debug
+$server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsAzure
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameLocal -SqlCredential $credentialLocalAdUser -Debug
+$server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsAzure
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameLocal -SqlCredential $credentialLocalSql -Debug
+$server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsAzure
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureSqlUser -Database $databaseNameAzure1 -Debug
+$server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsAzure
+
+$server = Connect-DbaInstance -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureAdUser -Database $databaseNameAzure1 -Debug
+$server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsAzure
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # There a five different objects, but only one connection:
