@@ -65,6 +65,21 @@ Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameLocal1 -Role db_
 Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameLocal2 -Role db_owner -User $credentialLocalSql.UserName -Confirm:$false
 
 
+# Setup Azure test databases
+
+$server = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialAzureAdmin -Database $databaseNameAzure1
+try { $server.Query("DROP TABLE dbo.TestTable") } catch {}
+$server.Query("CREATE TABLE dbo.TestTable(a int)")
+$server.Query("INSERT INTO dbo.TestTable VALUES (1)")
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameAzure1 -Role db_owner -User $credentialAzureSqlUser.UserName -Confirm:$false
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameAzure1 -Role db_owner -User $credentialAzureAdUser.UserName -Confirm:$false
+$server = Connect-DbaInstance -SqlInstance $instanceAzure -SqlCredential $credentialAzureAdmin -Database $databaseNameAzure2
+try { $server.Query("DROP TABLE dbo.TestTable") } catch {}
+$server.Query("CREATE TABLE dbo.TestTable(a int)")
+$server.Query("INSERT INTO dbo.TestTable VALUES (2)")
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameAzure2 -Role db_owner -User $credentialAzureSqlUser.UserName -Confirm:$false
+Add-DbaDbRoleMember -SqlInstance $server -Database $databaseNameAzure2 -Role db_owner -User $credentialAzureAdUser.UserName -Confirm:$false
+
 
 # Let's start with the central part: Test connection pooling with different methods of creating the smo server object
 
@@ -370,12 +385,35 @@ $server | Format-Table -Property ComputerName, DbaInstanceName, ConnectedAs, IsA
 
 
 
+#####
+# Use Invoke-DbaQuery to see is change in database context works
+#####
+
+$sql = "SELECT a FROM dbo.TestTable"
+
+Invoke-DbaQuery -SqlInstance $instanceNameLocal -Database $databaseNameLocal1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $instanceNameLocal -Database $databaseNameLocal2 -Query $sql -As SingleValue
+$server = Connect-DbaInstance -SqlInstance $instanceNameLocal
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameLocal1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameLocal2 -Query $sql -As SingleValue
+
+Invoke-DbaQuery -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureSqlUser -Database $databaseNameAzure1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureSqlUser -Database $databaseNameAzure2 -Query $sql -As SingleValue
+$server = Connect-DbaInstance  -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureSqlUser -Database $databaseNameAzure1
+Invoke-DbaQuery -SqlInstance $server -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure2 -Query $sql -As SingleValue
+
+Invoke-DbaQuery -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureAdUser -Database $databaseNameAzure1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureAdUser -Database $databaseNameAzure2 -Query $sql -As SingleValue
+$server = Connect-DbaInstance  -SqlInstance $instanceNameAzure -SqlCredential $credentialAzureAdUser -Database $databaseNameAzure1
+Invoke-DbaQuery -SqlInstance $server -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure1 -Query $sql -As SingleValue
+Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure2 -Query $sql -As SingleValue
 
 
-
-
-
-
+$cred = Get-Credential
+$server = Connect-DbaInstance  -SqlInstance $instanceNameAzure -SqlCredential $cred -Database $databaseNameAzure1 -debug
 
 
 
