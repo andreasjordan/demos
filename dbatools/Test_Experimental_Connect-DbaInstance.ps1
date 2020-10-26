@@ -412,11 +412,6 @@ Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure1 -Query $sql -
 Invoke-DbaQuery -SqlInstance $server -Database $databaseNameAzure2 -Query $sql -As SingleValue
 
 
-$cred = Get-Credential
-$server = Connect-DbaInstance  -SqlInstance $instanceNameAzure -SqlCredential $cred -Database $databaseNameAzure1 -debug
-
-
-
 
 
 
