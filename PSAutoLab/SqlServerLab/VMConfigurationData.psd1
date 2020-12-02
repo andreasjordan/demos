@@ -140,7 +140,7 @@ This example code is provided without copyright and AS IS.  It is free for you t
             Lability_BootOrder      = 10
             Lability_BootDelay      = 60 # Number of seconds to delay before others
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+            #Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
             CustomBootStrap         = @'
                     # This must be set to handle larger .mof files
                     Set-Item -path wsman:\localhost\maxenvelopesize -value 1000
@@ -157,7 +157,7 @@ This example code is provided without copyright and AS IS.  It is free for you t
             #Lability_MaximumMemory  = 4GB
             Lability_BootOrder      = 20
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+            #Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
@@ -170,7 +170,7 @@ This example code is provided without copyright and AS IS.  It is free for you t
             #Lability_MaximumMemory  = 4GB
             Lability_BootOrder      = 20
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+            #Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
@@ -183,7 +183,7 @@ This example code is provided without copyright and AS IS.  It is free for you t
             #Lability_MaximumMemory  = 4GB
             Lability_BootOrder      = 20
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+            #Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
@@ -196,7 +196,7 @@ This example code is provided without copyright and AS IS.  It is free for you t
             #Lability_MaximumMemory  = 4GB
             Lability_BootOrder      = 20
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+            #Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
