@@ -146,6 +146,10 @@ Describe DOM1 {
             It "[DOM1] Should have a computer account for SRV3" {
                 $computer.name -contains "SRV3" | Should Be "True"
             }
+
+            It "[DOM1] Should have a computer account for SRV4" {
+                $computer.name -contains "SRV4" | Should Be "True"
+            }
         } #if computer
 
         It "[DOM1] Should be running Windows Server 2016" {
@@ -178,9 +182,9 @@ Describe SRV1 {
             $test.domain | Should Be $domain
         }
 
-        It "[SRV1] Should have an IP address of 192.168.3.50" {
+        It "[SRV1] Should have an IP address of 192.168.3.51" {
             $i = Invoke-Command -ScriptBlock { Get-NetIPAddress -interfacealias 'Ethernet' -AddressFamily IPv4 } -Session $SRV1
-            $i.ipv4Address | Should be '192.168.3.50'
+            $i.ipv4Address | Should be '192.168.3.51'
         }
         $dns = Invoke-Command { Get-DnsClientServerAddress -InterfaceAlias ethernet -AddressFamily IPv4 } -session $SRV1
         It "[SRV1] Should have a DNS server configuration of 192.168.3.10" {
@@ -216,9 +220,9 @@ Describe SRV2 {
             $test.domain | Should Be $domain
         }
 
-        It "[SRV2] Should have an IP address of 192.168.3.51" {
+        It "[SRV2] Should have an IP address of 192.168.3.52" {
             $i = Invoke-Command -ScriptBlock { Get-NetIPAddress -interfacealias 'Ethernet' -AddressFamily IPv4 } -Session $SRV2
-            $i.ipv4Address | Should be '192.168.3.51'
+            $i.ipv4Address | Should be '192.168.3.52'
         }
         $dns = Invoke-Command { Get-DnsClientServerAddress -InterfaceAlias ethernet -AddressFamily IPv4 } -session $SRV2
         It "[SRV2] Should have a DNS server configuration of 192.168.3.10" {
@@ -254,18 +258,18 @@ Describe SRV3 {
             $test.domain | Should Be $domain
         }
 
-        It "[SRV3] Should have an IP address of 192.168.3.52" {
+        It "[SRV3] Should have an IP address of 192.168.3.53" {
             $i = Invoke-Command -ScriptBlock { Get-NetIPAddress -interfacealias 'Ethernet' -AddressFamily IPv4 } -Session $SRV3
-            $i.ipv4Address | Should be '192.168.3.52'
+            $i.ipv4Address | Should be '192.168.3.53'
         }
         $dns = Invoke-Command { Get-DnsClientServerAddress -InterfaceAlias ethernet -AddressFamily IPv4 } -session $SRV3
         It "[SRV3] Should have a DNS server configuration of 192.168.3.10" {
             $dns.ServerAddresses -contains '192.168.3.10' | Should Be "True"
         }
 
-        It "[SRV3] Should be running Windows Server 2019" {
+        It "[SRV3] Should be running Windows Server 2016" {
             $test = Invoke-Command { Get-CimInstance -ClassName win32_operatingsystem -property caption } -session $SRV3
-            $test.caption | Should BeLike '*2019*'
+            $test.caption | Should BeLike '*2016*'
         }
 
         It "[SRV3] Should pass Test-DSCConfiguration" {
@@ -278,6 +282,44 @@ Describe SRV3 {
         }
      }
 } #SRV3
+
+Describe SRV4 {
+
+    $VMName = "$($prefix)SRV4"
+    Try {
+        $SRV4 = New-PSSession -VMName $VMName -Credential $cred -ErrorAction Stop
+        $all += $srv4
+        Invoke-Command $prep -session $srv4
+
+        It "[SRV4] Should belong to the $domain domain" {
+            $test = Invoke-Command { Get-CimInstance -ClassName win32_computersystem -property domain } -session $SRV4
+            $test.domain | Should Be $domain
+        }
+
+        It "[SRV4] Should have an IP address of 192.168.3.54" {
+            $i = Invoke-Command -ScriptBlock { Get-NetIPAddress -interfacealias 'Ethernet' -AddressFamily IPv4 } -Session $SRV4
+            $i.ipv4Address | Should be '192.168.3.54'
+        }
+        $dns = Invoke-Command { Get-DnsClientServerAddress -InterfaceAlias ethernet -AddressFamily IPv4 } -session $SRV4
+        It "[SRV4] Should have a DNS server configuration of 192.168.3.10" {
+            $dns.ServerAddresses -contains '192.168.3.10' | Should Be "True"
+        }
+
+        It "[SRV4] Should be running Windows Server 2016" {
+            $test = Invoke-Command { Get-CimInstance -ClassName win32_operatingsystem -property caption } -session $SRV4
+            $test.caption | Should BeLike '*2016*'
+        }
+
+        It "[SRV4] Should pass Test-DSCConfiguration" {
+            Invoke-Command {Test-DscConfiguration -WarningAction SilentlyContinue} -session $SRV4 | Should Be "True"
+        }
+    }
+    Catch {
+        It "[SRV4] Should allow a PSSession but got error: $($_.exception.message)" {
+            $false | Should Be $True
+        }
+     }
+} #SRV4
 
 Describe Win10 {
 

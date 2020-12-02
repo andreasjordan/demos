@@ -77,9 +77,9 @@ This example code is provided without copyright and AS IS.  It is free for you t
 
             # Lability default node settings
             Lability_SwitchName         = 'LabNet'
-            Lability_ProcessorCount     = 1
-            Lability_MinimumMemory      = 1GB
-            Lability_MaximumMemory      = 3GB
+            Lability_ProcessorCount     = 2
+            Lability_MinimumMemory      = 2GB
+            Lability_MaximumMemory      = 4GB
             SecureBoot                  = $false
             Lability_Media              = '2016_x64_Standard_Core_EN_Eval'
             <#
@@ -134,12 +134,13 @@ This example code is provided without copyright and AS IS.  It is free for you t
             NodeName                = 'DOM1'
             IPAddress               = '192.168.3.10'
             Role                    = @('DC', 'DHCP', 'ADCS')
+            #Lability_ProcessorCount = 2
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
             Lability_BootOrder      = 10
             Lability_BootDelay      = 60 # Number of seconds to delay before others
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
             Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
-            Lability_MinimumMemory  = 2GB
-            Lability_ProcessorCount = 2
             CustomBootStrap         = @'
                     # This must be set to handle larger .mof files
                     Set-Item -path wsman:\localhost\maxenvelopesize -value 1000
@@ -147,41 +148,64 @@ This example code is provided without copyright and AS IS.  It is free for you t
         },
 
         @{
-            NodeName           = 'SRV1'
-            IPAddress          = '192.168.3.50'
+            NodeName                = 'SRV1'
+            IPAddress               = '192.168.3.51'
             #Role = 'DomainJoin' # example of multiple roles @('DomainJoin', 'Web')
-            Role               = @('DomainJoin')
-            Lability_BootOrder = 20
-            Lability_timeZone  = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media     = '2016_x64_Standard_Core_EN_Eval'
+            Role                    = @('DomainJoin')
+            Lability_ProcessorCount = 4
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
+            Lability_BootOrder      = 20
+            Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
+            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
-            NodeName           = 'SRV2'
-            IPAddress          = '192.168.3.51'
+            NodeName                = 'SRV2'
+            IPAddress               = '192.168.3.52'
             #Role = 'DomainJoin' # example of multiple roles @('DomainJoin', 'Web')
-            Role               = @('DomainJoin')
-            Lability_BootOrder = 20
-            Lability_timeZone  = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media     = '2016_x64_Standard_Core_EN_Eval'
+            Role                    = @('DomainJoin')
+            Lability_ProcessorCount = 4
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
+            Lability_BootOrder      = 20
+            Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
+            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
-            NodeName           = 'SRV3'
-            IPAddress          = '192.168.3.52'
+            NodeName                = 'SRV3'
+            IPAddress               = '192.168.3.53'
             #Role = 'DomainJoin' # example of multiple roles @('DomainJoin', 'Web')
-            Role               = @('DomainJoin')
-            Lability_BootOrder = 20
-            Lability_timeZone  = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
-            Lability_Media     = '2019_x64_Standard_EN_Core_Eval'
+            Role                    = @('DomainJoin')
+            Lability_ProcessorCount = 4
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
+            Lability_BootOrder      = 20
+            Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
+            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
+        },
+
+        @{
+            NodeName                = 'SRV4'
+            IPAddress               = '192.168.3.54'
+            #Role = 'DomainJoin' # example of multiple roles @('DomainJoin', 'Web')
+            Role                    = @('DomainJoin')
+            Lability_ProcessorCount = 4
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
+            Lability_BootOrder      = 20
+            Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
+            Lability_Media          = '2016_x64_Standard_Core_EN_Eval'
         },
 
         @{
             NodeName                = 'WIN10'
             IPAddress               = '192.168.3.100'
             Role                    = @('domainJoin', 'RDP', 'RSAT')
-            Lability_ProcessorCount = 2
-            Lability_MinimumMemory  = 2GB
+            #Lability_ProcessorCount = 2
+            #Lability_MinimumMemory  = 2GB
+            #Lability_MaximumMemory  = 4GB
             Lability_Media          = 'WIN10_x64_Enterprise_EN_Eval'
             Lability_BootOrder      = 20
             Lability_timeZone       = 'US Mountain Standard Time' #[System.TimeZoneInfo]::GetSystemTimeZones()
