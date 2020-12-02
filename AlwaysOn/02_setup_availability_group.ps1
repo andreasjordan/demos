@@ -46,6 +46,43 @@ $availabilityGroupParameters = @{
     ClusterType = 'Wsfc'
     Confirm     = $false
 }
+
+Write-LocalHost -Message 'Create Always On Availability Group with automatic seeding'
+New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Automatic | Format-Table
+Get-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName | Format-Table
+Get-DbaAgDatabase -SqlInstance $SqlInstances -AvailabilityGroup $AvailabilityGroupName -Database $DatabaseName | Format-Table
+
+
+Write-LocalHost -Message 'waiting...'
+Start-Sleep -Seconds 60
+
+Write-LocalHost -Message 'Drop Always On Availability Group'
+$null = Remove-DbaAvailabilityGroup -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Confirm:$false
+$null = Remove-DbaDatabase -SqlInstance $SqlInstances[1] -Database $DatabaseName -Confirm:$false
+
+Write-LocalHost -Message 'Create Always On Availability Group with manual seeding'
+New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Manual -SharedPath $BackupPath | Format-Table
+Get-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName | Format-Table
+Get-DbaAgDatabase -SqlInstance $SqlInstances -AvailabilityGroup $AvailabilityGroupName -Database $DatabaseName | Format-Table
+
+Write-LocalHost -Message 'finished'
+
+<#
+Combine manual and automatic seeding
+
+$SqlInstances = 'SRV1', 'SRV2'
+$null = New-DbaDatabase -SqlInstance $SqlInstances[0] -Name TestDB2
+$null = Backup-DbaDatabase -SqlInstance $SqlInstances[0] -Database TestDB2 -Path \\WIN10\SQLServerBackups -Type Full | Restore-DbaDatabase -SqlInstance $SqlInstances[1] -NoRecovery
+$null = Backup-DbaDatabase -SqlInstance $SqlInstances[0] -Database TestDB2 -Path \\WIN10\SQLServerBackups -Type Log | Restore-DbaDatabase -SqlInstance $SqlInstances[1] -Continue -NoRecovery
+$null = Add-DbaAgDatabase -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Database TestDB2 -Secondary $SqlInstances[1] -SeedingMode Automatic
+Start-Sleep -Seconds 10
+Get-DbaAgDatabase -SqlInstance $SqlInstances -AvailabilityGroup $AvailabilityGroupName -Database TestDB2 | Format-Table
+#>
+
+
+
+<#
+
 Write-LocalHost -Message 'Create Always On Availability Group with manual seeding'
 New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Manual -SharedPath $BackupPath | Format-Table
 #New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Automatic | Format-Table
@@ -54,7 +91,6 @@ Get-DbaAgDatabase -SqlInstance $SqlInstances -AvailabilityGroup $AvailabilityGro
 
 Write-LocalHost -Message 'finished'
 
-<#
 Write-LocalHost -Message 'Drop Always On Availability Group'
 $null = Remove-DbaAvailabilityGroup -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Confirm:$false
 $null = Remove-DbaDatabase -SqlInstance $SqlInstances[1] -Database $DatabaseName -Confirm:$false
