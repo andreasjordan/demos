@@ -1,8 +1,8 @@
 ﻿[CmdletBinding()]
 param (
     [string[]]$ClusterNodes = @('SRV1', 'SRV2'),
-    [string[]]$InstanceNames = @('SQL2014', 'SQL2016', 'SQL2017', 'SQL2019'),
-    [string[]]$SqlVersions = @('2014', '2016', '2017', '2019'),
+    [string[]]$InstanceNames = @('MSSQLSERVER', 'SQL2017', 'SQL2016', 'SQL2014'),
+    [string[]]$SqlVersions = @('2019', '2017', '2016', '2014'),
     [PSCredential]$AdministratorCredential = (New-Object -TypeName PSCredential -ArgumentList "COMPANY\Administrator", (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force)),
     [PSCredential]$SqlServerCredential = (New-Object -TypeName PSCredential -ArgumentList "COMPANY\SQLServer", (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force)),
     [string]$SQLServerSourcesPath = '\\WIN10\SQLServerSources',
@@ -51,7 +51,7 @@ if ( $null -eq (Get-ADUser -Filter "Name -eq '$SQLServerServiceAccountName'") ) 
 }
 
 Write-LocalHost -Message 'Import module dbatools'
-Import-Module -Name dbatools -MinimumVersion 1.0.115
+Import-Module -Name dbatools -MinimumVersion 1.0.124
 
 Write-LocalHost -Message 'Change powerplan of cluster nodes to high performance'
 Set-DbaPowerPlan -ComputerName $ClusterNodes | Format-Table
