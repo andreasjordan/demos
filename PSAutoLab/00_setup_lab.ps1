@@ -64,7 +64,7 @@ if ( -not $PatchOnly ) {
             # Should allow a PSSession but got error: Die Anmeldeinformationen sind ungültig.
             # Background: Sometimes a VM has problems joining the domain and only a hard reboot can solve the problem
             if ( $test.Name -match 'Should allow a PSSession but got error' ) {
-                $vm = $test.Describe
+                $vm = Get-LabSummary | Where-Object -Property Computername -EQ $test.Describe | Select-Object -ExpandProperty VMName
                 Write-LocalHost -Message "Restarting VM: $vm"
                 Stop-VM -Name $vm -TurnOff -WarningAction SilentlyContinue
                 Start-VM -Name $vm        
