@@ -22,7 +22,6 @@ $ErrorActionPreference = 'Stop'
 # configure package manager and repository for PowerShell and install favorite modules
 Install-PackageProvider -Name Nuget -Force | Out-Null
 Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-Install-Module -Name SqlServer
 Install-Module -Name dbatools
 
 # install package manager Chocolatey and install favorite programs
@@ -31,10 +30,13 @@ choco install 7zip -y
 choco install notepadplusplus -y
 choco install tortoisesvn -y
 choco install git -y
+#choco install github-desktop -y
+choco install vscode -y
+choco install vscode-powershell -y
 choco install googlechrome -y
 choco install sql-server-management-studio -y
-choco install azure-data-studio -y
-choco install powerbi -y --ignore-checksums
+#choco install azure-data-studio -y
+#choco install powerbi -y --ignore-checksums
 
 # set my favorite explorer settings
 Push-Location -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
