@@ -7,7 +7,8 @@ param (
     [string]$ClusterName = 'SQLCluster',
     [string]$ClusterIP = '192.168.3.70',
     [string]$SQLServerServiceAccount = 'SQLServer',
-    [SecureString]$Password = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
+    [SecureString]$AdminPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
+    [SecureString]$SqlPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
     [string]$SQLServerSourcesPath = '\\WIN10\SQLServerSources',
     [string]$SQLServerPatchesPath = '\\WIN10\SQLServerPatches',
     [string]$BackupPath = '\\WIN10\SQLServerBackups',
@@ -38,8 +39,8 @@ function Write-LocalVerbose {
 
 $ErrorActionPreference = 'Stop'
 
-$administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Administrator", $Password
-$sqlServerCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\$SQLServerServiceAccount", $Password
+$administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Administrator", $AdminPassword
+$sqlServerCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\$SQLServerServiceAccount", $SqlPassword
 
 if ( $null -eq (Get-ADUser -Filter "Name -eq '$SQLServerServiceAccount'") ) {
     Write-LocalHost -Message 'Creating user for SQL Server service account and grant access to backup share'
@@ -48,7 +49,7 @@ if ( $null -eq (Get-ADUser -Filter "Name -eq '$SQLServerServiceAccount'") ) {
 }
 
 Write-LocalHost -Message 'Import module dbatools'
-Import-Module -Name dbatools -MinimumVersion 1.0.115
+Import-Module -Name dbatools -MinimumVersion 1.0.131
 
 Write-LocalHost -Message 'Change powerplan of cluster nodes to high performance'
 Set-DbaPowerPlan -ComputerName $ClusterNodes | Format-Table
