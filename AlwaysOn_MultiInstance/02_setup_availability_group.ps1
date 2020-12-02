@@ -1,10 +1,10 @@
 ﻿[CmdletBinding()]
 param (
     [string[]]$ClusterNodes = @('SRV1', 'SRV2'),
-    [string[]]$InstanceNames = @('SQL2014', 'SQL2016', 'SQL2017', 'SQL2019'),
-    [string[]]$SqlVersions = @('2014', '2016', '2017', '2019'),
+    [string[]]$InstanceNames = @('MSSQLSERVER', 'SQL2017', 'SQL2016', 'SQL2014'),
+    [string[]]$SqlVersions = @('2019', '2017', '2016', '2014'),
     [int[]]$HadrEndpointPorts = @(5022, 5023, 5024, 5025),
-    [string[]]$AvailabilityGroupNames = @('Adventure2014', 'Adventure2016', 'Adventure2017', 'Adventure2019'),
+    [string[]]$AvailabilityGroupNames = @('Adventure2019', 'Adventure2017', 'Adventure2016', 'Adventure2014'),
     [System.Net.IPAddress[]]$AvailabilityGroupIPs = @('192.168.3.71', '192.168.3.72', '192.168.3.73', '192.168.3.74'),
     [PSCredential]$AdministratorCredential = (New-Object -TypeName PSCredential -ArgumentList "COMPANY\Administrator", (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force)),
     [PSCredential]$SqlServerCredential = (New-Object -TypeName PSCredential -ArgumentList "COMPANY\SQLServer", (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force)),
@@ -48,7 +48,7 @@ foreach ( $nr in 0 .. ($InstanceNames.Count - 1) ) {
 }
 
 Write-LocalHost -Message 'Import module dbatools'
-Import-Module -Name dbatools -MinimumVersion 1.0.115
+Import-Module -Name dbatools -MinimumVersion 1.0.124
 
 foreach ( $instance in $instances ) {
     $sqlInstances = @();
@@ -76,10 +76,6 @@ foreach ( $instance in $instances ) {
         Confirm     = $false
     }
     Write-LocalHost -Message 'Create Always On Availability Group with manual seeding'
-    if ( $instance.SqlVersion -eq '2014' ) {
-        Write-LocalHost -Message 'Sorry, there is a bug that prevents this command from working on SQL Server 2014'
-        continue
-    }
     New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Manual -SharedPath $BackupPath | Format-Table
     #New-DbaAvailabilityGroup @availabilityGroupParameters -SeedingMode Automatic | Format-Table
     Get-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $instance.AvailabilityGroupName | Format-Table
