@@ -14,3 +14,7 @@ In the folder AlwaysOn you find scripts to setup a cluster, default instances an
 In the folder AlwaysOn_MultiInstance the demo is extended to use named instances with various SQL Server versions.
  
 
+## Output results of sp_Blitz in Markdown format
+
+In the folder sp_Blitz_markdown you find a script that converts the results of sp_Blitz in a bulleted list in Markdown format.
+
