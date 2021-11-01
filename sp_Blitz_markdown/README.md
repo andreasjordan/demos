@@ -11,7 +11,7 @@ https://github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/blob/99c3073b26d
 
 And here is the code you also find in the sp_Blitz_output_as_markdown.ps1:
 
-```
+```powershell
 # Some configuration options. Just play with them and see how they work.
 $newLine = "`r`n"
 $noNewLineForOneFinding = $true
