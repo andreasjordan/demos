@@ -5,9 +5,10 @@ Import-Module -Name DnsServer
 
 $pw = ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force
 
-$ouAdminComputer = New-ADOrganizationalUnit -Name 'AdminComputer' -PassThru
+$null = New-ADOrganizationalUnit -Name 'AdminComputer' -PassThru
+$null = New-ADOrganizationalUnit -Name 'SqlComputer' -PassThru
+
 $ouAdminUser = New-ADOrganizationalUnit -Name 'AdminUser' -PassThru
-$ouSqlComputer = New-ADOrganizationalUnit -Name 'SqlComputer' -PassThru
 $ouSqlUser = New-ADOrganizationalUnit -Name 'SqlUser' -PassThru
 
 New-ADUser -Name Admin -AccountPassword $pw -Enabled $true -Path $ouAdminUser.DistinguishedName
