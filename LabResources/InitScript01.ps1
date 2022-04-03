@@ -10,6 +10,8 @@ $ouAdminUser = New-ADOrganizationalUnit -Name 'AdminUser' -PassThru
 $ouSqlComputer = New-ADOrganizationalUnit -Name 'SqlComputer' -PassThru
 $ouSqlUser = New-ADOrganizationalUnit -Name 'SqlUser' -PassThru
 
+New-ADUser -Name Admin -AccountPassword $pw -Enabled $true -Path $ouAdminUser.DistinguishedName
+
 New-ADUser -Name SQLServer -AccountPassword $pw -Enabled $true -Path $ouSqlUser.DistinguishedName
 New-ADUser -Name SQLSrv1 -AccountPassword $pw -Enabled $true -Path $ouSqlUser.DistinguishedName
 New-ADUser -Name SQLSrv2 -AccountPassword $pw -Enabled $true -Path $ouSqlUser.DistinguishedName
@@ -27,6 +29,7 @@ New-ADGroup -Name SQLServiceAccounts -GroupCategory Security -GroupScope Global 
 New-ADGroup -Name SQLAdmins -GroupCategory Security -GroupScope Global -Path $ouSqlUser.DistinguishedName
 New-ADGroup -Name SQLUsers -GroupCategory Security -GroupScope Global -Path $ouSqlUser.DistinguishedName
 
+Add-ADGroupMember -Identity 'Domain Admins' -Members Admin
 Add-ADGroupMember -Identity SQLServiceAccounts -Members SQLServer, SQLSrv1, SQLSrv2, SQLSrv3, SQLSrv4, SQLSrv5
 Add-ADGroupMember -Identity SQLAdmins -Members SQLAdmin
 Add-ADGroupMember -Identity SQLUsers -Members SQLUser1, SQLUser2, SQLUser3, SQLUser4, SQLUser5
@@ -40,7 +43,7 @@ Get-ChildItem -Path .\GPO\ | ForEach-Object -Process {
 
 Move-Item -Path .\FileServer -Destination D:\
 $smbShareAccessParam = @{
-    AccountName = "$env:USERDOMAIN\$env:USERNAME"
+    AccountName = "$env:USERDOMAIN\$env:USERNAME", "$env:USERDOMAIN\Admin"
     AccessRight = 'Full'
     Force       = $true
 }
