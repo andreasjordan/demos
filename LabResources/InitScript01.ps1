@@ -46,7 +46,7 @@ Invoke-Command -Session $session -ScriptBlock { $null = Grant-SmbShareAccess -Na
 Add-DnsServerResourceRecordCName -ComputerName dc -ZoneName ordix.local -HostNameAlias dc.ordix.local -Name fs
 #>
 
-Get-ChildItem -Path D:\GitHub\demos\LabResources\GPO\ | ForEach-Object -Process {
+Get-ChildItem -Path .\GPO\ | ForEach-Object -Process {
     $id = (Get-ChildItem -Path $_.FullName).Name
     $null = New-GPO -Name $_.Name
     $null = Import-GPO -TargetName $_.Name -Path $_.FullName -BackupId $id
