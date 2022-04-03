@@ -31,24 +31,24 @@ Add-ADGroupMember -Identity SQLServiceAccounts -Members SQLServer, SQLSrv1, SQLS
 Add-ADGroupMember -Identity SQLAdmins -Members SQLAdmin
 Add-ADGroupMember -Identity SQLUsers -Members SQLUser1, SQLUser2, SQLUser3, SQLUser4, SQLUser5
 
-
-<#
-$session = New-PSSession -ComputerName dc
-Invoke-Command -Session $session -ScriptBlock { Get-Disk | Where-Object IsOffline | Set-Disk -IsOffline $false }
-Invoke-Command -Session $session -ScriptBlock { Get-Disk | Where-Object IsReadOnly | Set-Disk -IsReadOnly $false }
-Invoke-Command -Session $session -ScriptBlock { $null = New-SmbShare -Path D:\FileServer -Name FileServer | Grant-SmbShareAccess -AccountName "ORDIX\Admin" -AccessRight Full -Force }
-Invoke-Command -Session $session -ScriptBlock { $null = New-SmbShare -Path D:\FileServer\Backup -Name Backup | Grant-SmbShareAccess -AccountName "ORDIX\Admin" -AccessRight Full -Force }
-Invoke-Command -Session $session -ScriptBlock { $null = New-SmbShare -Path D:\FileServer\ORDIX -Name ORDIX | Grant-SmbShareAccess -AccountName "ORDIX\Admin" -AccessRight Full -Force }
-Invoke-Command -Session $session -ScriptBlock { $null = New-SmbShare -Path D:\FileServer\SampleDatabases -Name SampleDatabases | Grant-SmbShareAccess -AccountName "ORDIX\Admin" -AccessRight Full -Force }
-Invoke-Command -Session $session -ScriptBlock { $null = New-SmbShare -Path D:\FileServer\Software -Name Software | Grant-SmbShareAccess -AccountName "ORDIX\Admin" -AccessRight Full -Force }
-Invoke-Command -Session $session -ScriptBlock { $null = Grant-SmbShareAccess -Name Backup -AccountName "ORDIX\SQLServiceAccounts" -AccessRight Change -Force }
-
-Add-DnsServerResourceRecordCName -ComputerName dc -ZoneName ordix.local -HostNameAlias dc.ordix.local -Name fs
-#>
-
 Get-ChildItem -Path .\GPO\ | ForEach-Object -Process {
     $id = (Get-ChildItem -Path $_.FullName -Filter '{*').Name
     $null = New-GPO -Name $_.Name
     $null = Import-GPO -TargetName $_.Name -Path $_.FullName -BackupId $id
     $null = New-GPLink -Name $_.Name -Target (Get-ADRootDSE).defaultNamingContext
 }
+
+Move-Item -Path .\FileServer -Destination D:\
+$smbShareAccessParam = @{
+    AccountName = "$env:USERDOMAIN\$env:USERNAME"
+    AccessRight = 'Full'
+    Force       = $true
+}
+$null = New-SmbShare -Path D:\FileServer -Name FileServer | Grant-SmbShareAccess @smbShareAccessParam
+$null = New-SmbShare -Path D:\FileServer\Backup -Name Backup | Grant-SmbShareAccess @smbShareAccessParam
+$null = New-SmbShare -Path D:\FileServer\ORDIX -Name ORDIX | Grant-SmbShareAccess @smbShareAccessParam
+$null = New-SmbShare -Path D:\FileServer\SampleDatabases -Name SampleDatabases | Grant-SmbShareAccess @smbShareAccessParam
+$null = New-SmbShare -Path D:\FileServer\Software -Name Software | Grant-SmbShareAccess @smbShareAccessParam
+$null = Grant-SmbShareAccess -Name Backup -AccountName "$env:USERDOMAIN\SQLServiceAccounts" -AccessRight Change -Force
+
+Add-DnsServerResourceRecordCName -ZoneName $env:USERDNSDOMAIN -HostNameAlias "$env:COMPUTERNAME.$env:USERDNSDOMAIN" -Name fs
