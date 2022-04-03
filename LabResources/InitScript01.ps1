@@ -5,7 +5,15 @@ Import-Module -Name DnsServer
 
 $pw = ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force
 
-$null = New-ADOrganizationalUnit -Name 'AdminComputer' -PassThru
+while(1) {
+    try {
+        $null = New-ADOrganizationalUnit -Name 'AdminComputer' -PassThru
+        break
+    } catch {
+        Start-Sleep -Seconds 60
+    }
+}
+
 $null = New-ADOrganizationalUnit -Name 'SqlComputer' -PassThru
 
 $ouAdminUser = New-ADOrganizationalUnit -Name 'AdminUser' -PassThru
