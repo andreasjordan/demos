@@ -47,7 +47,7 @@ Add-DnsServerResourceRecordCName -ComputerName dc -ZoneName ordix.local -HostNam
 #>
 
 Get-ChildItem -Path .\GPO\ | ForEach-Object -Process {
-    $id = (Get-ChildItem -Path $_.FullName).Name
+    $id = (Get-ChildItem -Path $_.FullName -Filter '{*').Name
     $null = New-GPO -Name $_.Name
     $null = Import-GPO -TargetName $_.Name -Path $_.FullName -BackupId $id
     $null = New-GPLink -Name $_.Name -Target (Get-ADRootDSE).defaultNamingContext
