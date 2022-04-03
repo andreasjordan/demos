@@ -46,7 +46,6 @@ $smbShareAccessParam = @{
 }
 $null = New-SmbShare -Path D:\FileServer -Name FileServer | Grant-SmbShareAccess @smbShareAccessParam
 $null = New-SmbShare -Path D:\FileServer\Backup -Name Backup | Grant-SmbShareAccess @smbShareAccessParam
-$null = New-SmbShare -Path D:\FileServer\ORDIX -Name ORDIX | Grant-SmbShareAccess @smbShareAccessParam
 $null = New-SmbShare -Path D:\FileServer\SampleDatabases -Name SampleDatabases | Grant-SmbShareAccess @smbShareAccessParam
 $null = New-SmbShare -Path D:\FileServer\Software -Name Software | Grant-SmbShareAccess @smbShareAccessParam
 $null = Grant-SmbShareAccess -Name Backup -AccountName "$env:USERDOMAIN\SQLServiceAccounts" -AccessRight Change -Force
