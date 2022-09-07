@@ -1,10 +1,10 @@
 ﻿[CmdletBinding()]
 param (
-    [string[]]$SqlInstances = @('SQL01', 'SQL02'),
+    [string[]]$SqlInstances = @('SQL01\SQL2017', 'SQL02\SQL2017'),
     [string]$BackupPath = '\\fs\Backup',
     [string]$DatabaseName = 'AdventureWorks',
-    [string]$AvailabilityGroupName = 'AdventureSQL',
-    [System.Net.IPAddress]$AvailabilityGroupIP = '192.168.3.71'
+    [string]$AvailabilityGroupName = 'AdventureSQL2017',
+    [System.Net.IPAddress]$AvailabilityGroupIP = '192.168.3.72'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +25,7 @@ $availabilityGroupParameters = @{
     Secondary          = $SqlInstances[1]
     Name               = $AvailabilityGroupName
     IPAddress          = $AvailabilityGroupIP
+    Port               = 14330                 # This is only needed if you have also run the 02_setup_availability_group.ps1 - as the other availability group already uses port 1433
     Database           = $DatabaseName
     ClusterType        = 'Wsfc'
     ConfigureXESession = $true
@@ -33,7 +34,7 @@ $availabilityGroupParameters = @{
 # Special configuration for one of our clients:
 $availabilityGroupParameters['DtcSupport'] = $true
 $availabilityGroupParameters['ConnectionModeInSecondaryRole'] = 'AllowAllConnections'
-$availabilityGroupParameters['EndpointUrl'] = 'TCP://192.168.3.31:5023', 'TCP://192.168.3.32:5023'
+$availabilityGroupParameters['EndpointUrl'] = 'TCP://192.168.3.31:5024', 'TCP://192.168.3.32:5024'
 
 Write-PSFMessage -Level Host -Message 'Create Always On Availability Group with automatic seeding'
 $availabilityGroupParameters['SeedingMode'] = 'Automatic'

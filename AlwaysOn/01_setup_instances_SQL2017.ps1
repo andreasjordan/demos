@@ -3,7 +3,7 @@ param (
     [string]$DomainName = 'ORDIX',
     [string]$DomainController = 'DC',
     [string[]]$ClusterNodes = @('SQL01', 'SQL02'),
-    [string[]]$SqlInstances = @('SQL01', 'SQL02'),
+    [string[]]$SqlInstances = @('SQL01\SQL2017', 'SQL02\SQL2017'),
     [string]$SQLServerServiceAccount = 'SQLServer',
     [SecureString]$AdminPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
     [SecureString]$SqlPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
@@ -38,7 +38,7 @@ Set-DbaPowerPlan -ComputerName $ClusterNodes | Format-Table
 Write-PSFMessage -Level Host -Message 'Install SQL Server instances on cluster nodes'
 $installParams = @{
     SqlInstance        = $SqlInstances
-    Version            = 2019
+    Version            = 2017
     Feature            = 'Engine'
     Path               = $SQLServerSourcesPath
     UpdateSourcePath   = $SQLServerPatchesPath
