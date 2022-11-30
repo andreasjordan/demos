@@ -47,6 +47,7 @@ $installParams = @{
     AuthenticationMode = 'Mixed'
     SaCredential       = $sqlServerCredential
     Credential         = $administratorCredential
+    Restart            = $true
     EnableException    = $false
 }
 $installResult = Install-DbaInstance @installParams
@@ -57,6 +58,9 @@ if ($false -in $installResult.Successful) {
 
 Write-PSFMessage -Level Host -Message 'Grant instant file initialization rights to SQL Server service account on cluster nodes'
 Set-DbaPrivilege -ComputerName $ClusterNodes -Type IFI
+
+Write-PSFMessage -Level Host -Message 'Add rule to firewall on cluster nodes'
+New-DbaFirewallRule -SqlInstance $SqlInstances | Format-Table
 
 Write-PSFMessage -Level Host -Message 'Configure SQL Server instances: MaxMemory / MaxDop / CostThresholdForParallelism'
 Set-DbaMaxMemory -SqlInstance $SqlInstances -Max 2048 | Format-Table

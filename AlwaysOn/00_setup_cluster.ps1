@@ -16,9 +16,11 @@ try {
 Write-PSFMessage -Level Host -Message 'Install cluster feature on each node'
 Invoke-Command -ComputerName $ClusterNodes -ScriptBlock { Install-WindowsFeature -Name Failover-Clustering -IncludeManagementTools } | Format-Table
 
-Write-PSFMessage -Level Host -Message 'Run cluster test and display result in web browser'
+Write-PSFMessage -Level Host -Message 'Run cluster test'
 $clusterTest = Test-Cluster -Node $ClusterNodes
+<# To display result in web browser run:
 & $clusterTest.FullName
+#>
 
 Write-PSFMessage -Level Host -Message 'Create the cluster'
 $cluster = New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP

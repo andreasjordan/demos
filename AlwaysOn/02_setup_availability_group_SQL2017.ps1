@@ -4,7 +4,8 @@ param (
     [string]$BackupPath = '\\fs\Backup',
     [string]$DatabaseName = 'AdventureWorks',
     [string]$AvailabilityGroupName = 'AdventureSQL2017',
-    [System.Net.IPAddress]$AvailabilityGroupIP = '192.168.3.72'
+    [System.Net.IPAddress]$AvailabilityGroupIP = '192.168.3.72',
+    [string[]]$EndpointUrls = @('TCP://192.168.3.31:5024', 'TCP://192.168.3.32:5024')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +35,9 @@ $availabilityGroupParameters = @{
 # Special configuration for one of our clients:
 $availabilityGroupParameters['DtcSupport'] = $true
 $availabilityGroupParameters['ConnectionModeInSecondaryRole'] = 'AllowAllConnections'
-$availabilityGroupParameters['EndpointUrl'] = 'TCP://192.168.3.31:5024', 'TCP://192.168.3.32:5024'
+if ($EndpointUrls.Count -gt 0) {
+    $availabilityGroupParameters['EndpointUrl'] = $EndpointUrls
+}
 
 Write-PSFMessage -Level Host -Message 'Create Always On Availability Group with automatic seeding'
 $availabilityGroupParameters['SeedingMode'] = 'Automatic'
