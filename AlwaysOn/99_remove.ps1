@@ -13,6 +13,8 @@ $ErrorActionPreference = 'Stop'
 Import-Module -Name PSFramework
 Import-Module -Name dbatools
 
+$PSDefaultParameterValues['*-Dba*:Confirm'] = $false
+
 $administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Admin", $AdminPassword
 
 Write-PSFMessage -Level Host -Message 'Get Cluster Nodes'
