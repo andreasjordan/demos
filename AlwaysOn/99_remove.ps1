@@ -90,7 +90,7 @@ Invoke-Command -ComputerName $DomainController -ScriptBlock { Remove-Item -Path 
 Invoke-Command -ComputerName $clusterNodes.Name -ScriptBlock { Remove-WindowsFeature -Name Failover-Clustering -IncludeManagementTools } | Format-Table
 
 Write-PSFMessage -Level Host -Message 'Restart server'
-Restart-Computer -ComputerName $clusterNodes.Name
+Restart-Computer -ComputerName $clusterNodes.Name -Force
 
 
 # Maybe needed:
