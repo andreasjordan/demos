@@ -64,6 +64,7 @@ $installParams = @{
     AuthenticationMode = 'Mixed'
     SaCredential       = $sqlServerCredential
     Credential         = $administratorCredential
+    Restart            = $true
     EnableException    = $false
 }
 $installResult = Install-DbaInstance @installParams
