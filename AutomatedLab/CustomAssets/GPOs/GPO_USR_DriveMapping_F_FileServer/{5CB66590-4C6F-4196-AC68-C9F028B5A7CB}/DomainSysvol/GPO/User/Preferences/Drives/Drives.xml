@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Drives clsid="{8FDDCC1A-0C3C-43cd-A6B4-71A6DF20DA8C}"><Drive clsid="{935D1B74-9CB8-4e3c-9914-7DD559B7A417}" name="F:" status="F:" image="2" bypassErrors="1" changed="2022-03-10 08:26:44" uid="{6B93B06A-D2E0-4729-847C-4D91568E7105}"><Properties action="U" thisDrive="NOCHANGE" allDrives="NOCHANGE" userName="" path="\\fs\FileServer" label="" persistent="1" useLetter="1" letter="F"/></Drive>
+</Drives>
