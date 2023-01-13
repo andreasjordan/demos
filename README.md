@@ -1,11 +1,11 @@
 # This is my demo space
 
-This is mainly for demos with Microsoft SQL Server. And very much work in progress at this time.
+This is mainly for demos with Microsoft SQL Server and PowerShell. And very much work in progress all the time.
 
 
 ## Setup a lab environment for demos
 
-You find instructions and scripts to setup labs in the folder PSAutoLab, because I use this PowerShell module.
+I switched from PSAutoLab to AutomatedLab, will share my scripts later...
 
 
 ## Setup Always On with dbatools
