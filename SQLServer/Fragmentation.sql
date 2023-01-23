@@ -92,6 +92,42 @@ SELECT database_id
         , order_id;
 
 
+/*
+Show one line per database and custom page type group.
+Like the previous statement, but we now focus on fragmentation.
+Filtering out "other_page" and small mb_free.
+Sorting by mb_free descending.
+*/
+WITH data AS (
+  SELECT database_id
+       , DB_NAME(database_id) AS database_name
+       , CASE
+           WHEN page_type = 'DATA_PAGE'
+           THEN 'DATA_PAGE'
+           WHEN page_type = 'INDEX_PAGE'
+            AND page_level = 0
+           THEN 'INDEX_PAGE_leaf'
+           ELSE 'INDEX_PAGE_non_leaf'
+         END AS page_type_and_level
+       , free_space_in_bytes
+    FROM sys.dm_os_buffer_descriptors
+   WHERE database_id BETWEEN 5 and 32766
+     AND page_type IN ('DATA_PAGE', 'INDEX_PAGE')
+)
+SELECT database_id
+     , database_name
+     , page_type_and_level
+     , COUNT(*) AS pages
+     , COUNT(*)*8/1024 AS mb_total
+     , SUM(free_space_in_bytes)/1024/1024 AS mb_free
+  FROM data
+ GROUP BY database_id
+        , database_name
+        , page_type_and_level
+HAVING SUM(free_space_in_bytes)/1024/1024 > 100
+ ORDER BY SUM(free_space_in_bytes)/1024/1024 DESC;
+
+
 
 /*
 Part 2:
@@ -109,7 +145,9 @@ GO
 /*
 Show detailed information for "DATA_PAGE" and "INDEX_PAGE_leaf" per index on user objects.
 */
-SELECT o.name AS table_name
+SELECT DB_ID() AS database_id
+     , DB_NAME() AS database_name
+     , o.name AS table_name
      , i.index_id
      , i.name AS index_name
      , i.type_desc AS index_type
@@ -120,6 +158,7 @@ SELECT o.name AS table_name
        END AS page_type_and_level
      , COUNT(*) AS pages
      , COUNT(*)*8/1024 AS mb_total
+     , SUM(bd.free_space_in_bytes)/1024/1024 AS mb_free
      , AVG(bd.free_space_in_bytes) AS avg_free_space_in_bytes
      , (8096-AVG(bd.free_space_in_bytes))*100/8096 AS avg_page_space_used_in_percent
      , MAX(i.fill_factor) AS index_fill_factor
@@ -138,13 +177,18 @@ SELECT o.name AS table_name
         , i.name
         , i.type_desc
         , bd.page_type
- ORDER BY 1,2;
+-- Sort order 1: By table_name and index_id
+ ORDER BY o.name, i.index_id;
+-- Sort order 2: By mb_free descending
+ ORDER BY SUM(bd.free_space_in_bytes) DESC;
 
 
 /*
 Show detailed information of all pages not shown in previous query.
 */
-SELECT o.is_ms_shipped
+SELECT DB_ID() AS database_id
+     , DB_NAME() AS database_name
+     , o.is_ms_shipped
      , o.name AS table_name
      , i.index_id
      , i.name AS index_name
@@ -173,13 +217,15 @@ SELECT o.is_ms_shipped
         , bd.page_type
         , bd.page_level
         , au.type_desc
- ORDER BY 1,2,3,4,5,6,7,8;
+ ORDER BY 1,2,3,4,5,6,7,8,9,10;
 
 
 /*
 Very detailed view, query should be customized for individual needs.
 */
-SELECT o.name AS table_name
+SELECT DB_ID() AS database_id
+     , DB_NAME() AS database_name
+     , o.name AS table_name
      , i.name AS index_name
      , i.type_desc AS index_type
      , i.fill_factor
@@ -200,5 +246,5 @@ SELECT o.name AS table_name
 --   AND bd.page_level = 0
 --   AND au.type_desc = 'IN_ROW_DATA'
 --   AND o.is_ms_shipped = 0
- ORDER BY 1,2,3,4,5,6,7;
+ ORDER BY 1,2,3,4,5,6,7,8,9;
 
