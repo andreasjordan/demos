@@ -14,7 +14,7 @@ Currently possible:
 * Microsoft SQL Server
 * Oracle
 * MySQL
-* MariaDB (currently only version 10.9)
+* MariaDB
 * PostgreSQL
 * PostgreSQL with PostGIS
 
