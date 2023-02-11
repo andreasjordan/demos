@@ -20,7 +20,7 @@ SELECT database_id
   FROM sys.dm_os_buffer_descriptors
  WHERE database_id BETWEEN 5 and 32766
  GROUP BY database_id 
- ORDER BY database_id;
+ ORDER BY SUM(free_space_in_bytes);
 
 
 /*
@@ -125,7 +125,7 @@ SELECT database_id
         , database_name
         , page_type_and_level
 HAVING SUM(free_space_in_bytes)/1024/1024 > 100
- ORDER BY SUM(free_space_in_bytes)/1024/1024 DESC;
+ ORDER BY SUM(free_space_in_bytes) DESC;
 
 
 
