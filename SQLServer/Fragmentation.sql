@@ -161,7 +161,11 @@ SELECT DB_ID() AS database_id
      , SUM(bd.free_space_in_bytes)/1024/1024 AS mb_free
      , AVG(bd.free_space_in_bytes) AS avg_free_space_in_bytes
      , (8096-AVG(bd.free_space_in_bytes))*100/8096 AS avg_page_space_used_in_percent
-     , CASE WHEN MAX(i.fill_factor) = 0 THEN 100 ELSE MAX(i.fill_factor) END AS index_fill_factor
+     , CASE
+         WHEN i.fill_factor = 0
+         THEN 100 
+         ELSE i.fill_factor
+       END AS index_fill_factor
   FROM sys.dm_os_buffer_descriptors AS bd
   JOIN sys.allocation_units AS au ON bd.allocation_unit_id = au.allocation_unit_id
   JOIN sys.partitions AS p ON au.container_id = p.hobt_id
@@ -176,6 +180,7 @@ SELECT DB_ID() AS database_id
         , i.index_id
         , i.name
         , i.type_desc
+        , i.fill_factor
         , bd.page_type
 -- Sort order 1: By table_name and index_id
  ORDER BY o.name, i.index_id;
