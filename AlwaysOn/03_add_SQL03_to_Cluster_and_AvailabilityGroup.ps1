@@ -36,11 +36,11 @@ if ( $installResult.RestartNeeded -eq 'Yes' ) {
 }
 
 Write-PSFMessage -Level Host -Message 'Add new node to cluster'
-Get-Cluster -Name $ClusterName | Add-ClusterNode -Name $NewClusterNode
+Add-ClusterNode -Cluster $ClusterName -Name $NewClusterNode
 # This should output something, but it does not
 
 Write-PSFMessage -Level Host -Message 'Lets see if we have a new node'
-Get-Cluster -Name $ClusterName | Get-ClusterNode | Format-Table
+Get-ClusterNode -Cluster $ClusterName | Format-Table
 # Yes, we have
 
 

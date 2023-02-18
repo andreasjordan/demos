@@ -24,7 +24,7 @@ Write-PSFMessage -Level Host -Message "Result of cluster test is available at: $
 #>
 
 Write-PSFMessage -Level Host -Message 'Create the cluster'
-$cluster = New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
+$null = New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
 
 Write-PSFMessage -Level Host -Message 'Create a share as cluster quorum and configure the cluster'
 Invoke-Command -ComputerName $DomainController -ScriptBlock { 
@@ -32,7 +32,7 @@ Invoke-Command -ComputerName $DomainController -ScriptBlock {
     $null = New-SmbShare -Path "C:\WindowsClusterQuorum_$using:ClusterName" -Name "WindowsClusterQuorum_$using:ClusterName"
     $null = Grant-SmbShareAccess -Name "WindowsClusterQuorum_$using:ClusterName" -AccountName "$using:DomainName\$using:ClusterName$" -AccessRight Full -Force
 }
-$cluster | Set-ClusterQuorum -NodeAndFileShareMajority "\\$DomainController\WindowsClusterQuorum_$ClusterName" | Format-List
+Set-ClusterQuorum -Cluster $ClusterName -NodeAndFileShareMajority "\\$DomainController\WindowsClusterQuorum_$ClusterName" | Format-List
 
 Write-PSFMessage -Level Host -Message 'Grant necessary rights to the computer account of the cluster'
 $adComputerGUID = [GUID]::new('bf967a86-0de6-11d0-a285-00aa003049e2')

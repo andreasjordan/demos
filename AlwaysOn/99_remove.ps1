@@ -18,7 +18,7 @@ $PSDefaultParameterValues['*-Dba*:Confirm'] = $false
 $administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Admin", $AdminPassword
 
 Write-PSFMessage -Level Host -Message 'Get Cluster Nodes'
-$clusterNodes = Get-Cluster -Name $ClusterName -Domain $DomainName | Get-ClusterNode
+$clusterNodes = Get-ClusterNode -Name $ClusterName
 
 Write-PSFMessage -Level Host -Message 'Get SQL Server instances on cluster nodes'
 $sqlInstances = Find-DbaInstance -ComputerName $clusterNodes.Name
@@ -83,7 +83,7 @@ Write-PSFMessage -Level Host -Message "Remove backups from backup directory"
 Get-ChildItem -Path $BackupPath | Where-Object -Property Name -Match -Value '_\d{12}.(bak|trn)$' | Remove-Item
 
 Write-PSFMessage -Level Host -Message "Remove cluster"
-Get-Cluster -Name $ClusterName -Domain $DomainName | Remove-Cluster -Force
+Remove-Cluster -Cluster $ClusterName -Force
 Get-ADComputer -Filter "Name -eq '$ClusterName'" | Remove-ADComputer -Confirm:$false
 Invoke-Command -ComputerName $DomainController -ScriptBlock { Remove-SmbShare -Name "WindowsClusterQuorum_$using:ClusterName" -Force }
 Invoke-Command -ComputerName $DomainController -ScriptBlock { Remove-Item -Path "C:\WindowsClusterQuorum_$using:ClusterName" -Recurse }
