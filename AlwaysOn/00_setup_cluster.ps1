@@ -18,6 +18,7 @@ Invoke-Command -ComputerName $ClusterNodes -ScriptBlock { Install-WindowsFeature
 
 Write-PSFMessage -Level Host -Message 'Run cluster test'
 $clusterTest = Test-Cluster -Node $ClusterNodes
+Write-PSFMessage -Level Host -Message "Result of cluster test is available at: $($clusterTest.FullName)"
 <# To display result in web browser run:
 & $clusterTest.FullName
 #>
