@@ -38,7 +38,7 @@ Set-DbaPowerPlan -ComputerName $ClusterNodes | Format-Table
 Write-PSFMessage -Level Host -Message 'Install SQL Server instances on cluster nodes'
 $installParams = @{
     SqlInstance        = $SqlInstances
-    Version            = 2019
+    Version            = 2022
     Feature            = 'Engine'
     Path               = $SQLServerSourcesPath
     UpdateSourcePath   = $SQLServerPatchesPath
