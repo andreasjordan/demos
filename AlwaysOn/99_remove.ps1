@@ -42,6 +42,7 @@ foreach ($inst in $sqlInstances) {
         # Try to get information from running instance
         $server = Connect-DbaInstance -SqlInstance $inst.SqlInstance
         $instanceVersion = ($server.GetSqlServerVersionName() -split ' ')[-1]
+        if (-not $instanceVersion) { $instanceVersion = 2022 }
         $instancePath = $server.RootDirectory -replace 'MSSQL$', ''
     } catch {
         # Fallback to information about the service
@@ -52,6 +53,7 @@ foreach ($inst in $sqlInstances) {
     $params = @{
         SqlInstance      = $inst.SqlInstance
         Version          = $instanceVersion
+        Feature          = 'Engine'
         Configuration    = @{ ACTION = 'Uninstall' } 
         Path             = $SQLServerSourcesPath
         Restart          = $true
