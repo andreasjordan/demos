@@ -91,6 +91,10 @@ $FileServerFolder = @(
         Path  = 'FileServer\Software\SQLServer\ISO'
     }
     @{
+        Path      = 'FileServer\Software\SQLServer\ISO\SQLServer2022'
+        ExpandISO = "$labSources\CustomAssets\FileServerISOs\enu_sql_server_2022_developer_edition_x64_dvd_7cacf733.iso"
+    }
+    @{
         Path      = 'FileServer\Software\SQLServer\ISO\SQLServer2019'
         ExpandISO = "$labSources\CustomAssets\FileServerISOs\en_sql_server_2019_developer_x64_dvd_e5ade34a.iso"
     }
@@ -359,6 +363,15 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Installing PowerShell mod
     }
 }
 
+
+
+Stop-LabVM -All
+Start-Sleep -Seconds 10
+Checkpoint-VM -Name $LabName-* -SnapshotName Level0
+Start-LabVM -ComputerName DC -Wait ; Start-LabVM -All
+Start-Sleep -Seconds 30
+
+
 Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading demo repository' -ScriptBlock { 
     $logPath = 'C:\DeployDebug\DownloadDemos.log'
 
@@ -472,4 +485,55 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Setting up SQL03' -PassTh
 Write-PSFMessage -Level Host -Message "finished"
 
 vmconnect.exe localhost $LabName-ADMIN01
+
+
+
+break
+
+
+
+Stop-LabVM -All
+Start-Sleep -Seconds 10
+Get-VMSnapshot -VMName $LabName-* -Name Level0 | Restore-VMSnapshot -Confirm:$false
+Start-LabVM -ComputerName DC -Wait ; Start-LabVM -All
+Start-Sleep -Seconds 30
+
+
+
+Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Create script for a test with PowerShell 7.3 and dbatools 2.0.0-prerelease' -ScriptBlock { 
+@'
+Get-ADComputer -Filter 'Name -like "SQL*"' |
+    ForEach-Object -Process { 
+        $null = Enable-WSManCredSSP -Role Client -DelegateComputer $_.Name -Force
+        $null = Enable-WSManCredSSP -Role Client -DelegateComputer $_.DNSHostName -Force
+    }
+
+Install-Module -Name dbatools -AllowPrerelease -Force
+Set-DbatoolsConfig -Name Import.EncryptionMessageCheck -Value $false -PassThru | Register-DbatoolsConfig
+Set-DbatoolsConfig -Name sql.connection.trustcert -Value $true -PassThru | Register-DbatoolsConfig
+Import-Module -Name dbatools -MinimumVersion 2.0.0
+
+Set-Location -Path \\fs\Software\SQLServer\CU
+.\Get-CU.ps1
+
+$null = New-Item -Path C:\GitHub -ItemType Directory
+Invoke-WebRequest -Uri https://github.com/andreasjordan/demos/archive/refs/heads/master.zip -OutFile C:\GitHub\master.zip -UseBasicParsing
+Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
+Rename-Item C:\GitHub\demos-master -NewName demos
+Remove-Item C:\GitHub\master.zip
+
+C:\GitHub\demos\AlwaysOn\00_setup_cluster.ps1
+
+C:\GitHub\demos\AlwaysOn\01_setup_instances.ps1
+C:\GitHub\demos\AlwaysOn\01_setup_instances_SQL2017.ps1
+
+C:\GitHub\demos\AlwaysOn\02_setup_availability_group.ps1
+C:\GitHub\demos\AlwaysOn\02_setup_availability_group_SQL2017.ps1
+
+C:\GitHub\demos\AlwaysOn\03_add_SQL03_to_Cluster_and_AvailabilityGroup.ps1
+'@ | Set-Content -Path C:\test.ps1
+}
+
+
+# Open PowerShell 7 inside of ADMIN01 and run "C:\test.ps1"
 
