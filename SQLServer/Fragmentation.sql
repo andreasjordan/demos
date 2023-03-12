@@ -16,11 +16,11 @@ SELECT database_id
      , DB_NAME(database_id) AS database_name
      , COUNT(*) AS pages
      , COUNT(*)*8/1024 AS mb_total
-     , SUM(free_space_in_bytes)/1024/1024 AS mb_free
+     , SUM(CAST(free_space_in_bytes AS bigint))/1024/1024 AS mb_free
   FROM sys.dm_os_buffer_descriptors
- WHERE database_id BETWEEN 5 and 32766
+ WHERE database_id BETWEEN 5 and 32760
  GROUP BY database_id 
- ORDER BY SUM(free_space_in_bytes);
+ ORDER BY SUM(CAST(free_space_in_bytes AS bigint));
 
 
 /*
@@ -32,9 +32,9 @@ SELECT database_id
      , page_level
      , COUNT(*) AS pages
      , COUNT(*)*8/1024 AS mb_total
-     , SUM(free_space_in_bytes)/1024/1024 AS mb_free
+     , SUM(CAST(free_space_in_bytes AS bigint))/1024/1024 AS mb_free
   FROM sys.dm_os_buffer_descriptors
- WHERE database_id BETWEEN 5 and 32766
+ WHERE database_id BETWEEN 5 and 32760
  GROUP BY database_id
         , page_type
         , page_level
@@ -73,9 +73,9 @@ WITH data AS (
            THEN 3
            ELSE 4
          END AS order_id
-       , free_space_in_bytes
+       , CAST(free_space_in_bytes AS bigint) AS free_space_in_bytes
     FROM sys.dm_os_buffer_descriptors
-   WHERE database_id BETWEEN 5 and 32766
+   WHERE database_id BETWEEN 5 and 32760
 )
 SELECT database_id
      , database_name
@@ -109,9 +109,9 @@ WITH data AS (
            THEN 'INDEX_PAGE_leaf'
            ELSE 'INDEX_PAGE_non_leaf'
          END AS page_type_and_level
-       , free_space_in_bytes
+       , CAST(free_space_in_bytes AS bigint) AS free_space_in_bytes
     FROM sys.dm_os_buffer_descriptors
-   WHERE database_id BETWEEN 5 and 32766
+   WHERE database_id BETWEEN 5 and 32760
      AND page_type IN ('DATA_PAGE', 'INDEX_PAGE')
 )
 SELECT database_id
@@ -158,9 +158,9 @@ SELECT DB_ID() AS database_id
        END AS page_type_and_level
      , COUNT(*) AS pages
      , COUNT(*)*8/1024 AS mb_total
-     , SUM(bd.free_space_in_bytes)/1024/1024 AS mb_free
-     , AVG(bd.free_space_in_bytes) AS avg_free_space_in_bytes
-     , (8096-AVG(bd.free_space_in_bytes))*100/8096 AS avg_page_space_used_in_percent
+     , SUM(CAST(bd.free_space_in_bytes AS bigint))/1024/1024 AS mb_free
+     , AVG(CAST(bd.free_space_in_bytes AS bigint)) AS avg_free_space_in_bytes
+     , (8096-AVG(CAST(bd.free_space_in_bytes AS bigint)))*100/8096 AS avg_page_space_used_in_percent
      , CASE
          WHEN i.fill_factor = 0
          THEN 100 
@@ -185,7 +185,7 @@ SELECT DB_ID() AS database_id
 -- Sort order 1: By table_name and index_id
  ORDER BY o.name, i.index_id;
 -- Sort order 2: By mb_free descending
- ORDER BY SUM(bd.free_space_in_bytes) DESC;
+ ORDER BY SUM(CAST(bd.free_space_in_bytes AS bigint)) DESC;
 
 
 /*
