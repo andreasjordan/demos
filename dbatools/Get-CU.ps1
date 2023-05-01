@@ -47,7 +47,7 @@ function Get-CU {
 }
 
 Write-Progress -Activity "Downloading Cumulative Updates for SQL Server" -Status "Importing dbatools"
-Import-Module -Name dbatools
+Import-Module -Name dbatools 6> $null
 
 if ($UpdateBuildReference) {
     Write-Progress -Activity "Downloading Cumulative Updates for SQL Server" -Status "Updating build reference"
