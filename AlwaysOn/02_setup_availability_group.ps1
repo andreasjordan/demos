@@ -74,6 +74,27 @@ Add-DbaAgDatabase -SqlInstance $SqlInstances[0] -AvailabilityGroup $Availability
 Get-DbaAgDatabase -SqlInstance $SqlInstances -AvailabilityGroup $AvailabilityGroupName -Database TestDB | Format-Table
 
 
+Write-PSFMessage -Level Host -Message 'Configuring read only routing to use secondary for read only connections'
+$null = Set-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Replica $SqlInstances[0] -ReadonlyRoutingConnectionUrl "TCP://$($SqlInstances[0]):1433"
+$null = Set-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Replica $SqlInstances[1] -ReadonlyRoutingConnectionUrl "TCP://$($SqlInstances[1]):1433"
+$null = Set-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Replica $SqlInstances[0] -ReadOnlyRoutingList $SqlInstances[1], $SqlInstances[0]
+$null = Set-DbaAgReplica -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName -Replica $SqlInstances[1] -ReadOnlyRoutingList $SqlInstances[0], $SqlInstances[1]
+
+Write-PSFMessage -Level Host -Message 'Testing read only routing to use secondary for read only connections'
+Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadWrite | Format-Table
+Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadOnly | Format-Table
+
+Write-PSFMessage -Level Host -Message 'Failing over to other node'
+$null = Invoke-DbaAgFailover -SqlInstance $SqlInstances[1] -AvailabilityGroup $AvailabilityGroupName
+
+Write-PSFMessage -Level Host -Message 'Testing read only routing to use secondary for read only connections'
+Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadWrite | Format-Table
+Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadOnly | Format-Table
+
+Write-PSFMessage -Level Host -Message 'Failing back again'
+$null = Invoke-DbaAgFailover -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName
+
+
 Write-PSFMessage -Level Host -Message 'finished'
 
 } catch { Write-PSFMessage -Level Warning -Message 'failed' -ErrorRecord $_ }
