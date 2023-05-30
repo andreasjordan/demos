@@ -86,6 +86,7 @@ Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName 
 
 Write-PSFMessage -Level Host -Message 'Failing over to other node'
 $null = Invoke-DbaAgFailover -SqlInstance $SqlInstances[1] -AvailabilityGroup $AvailabilityGroupName
+Start-Sleep -Seconds 1
 
 Write-PSFMessage -Level Host -Message 'Testing read only routing to use secondary for read only connections'
 Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadWrite | Format-Table
