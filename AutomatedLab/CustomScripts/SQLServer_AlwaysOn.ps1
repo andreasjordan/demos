@@ -356,6 +356,11 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Installing PowerShell mod
                 "Install-Module $name not needed" | Add-Content -Path $logPath
             }
         }
+
+        # Configure dbatools to suppress the message during import and to accept self-signed certificates:
+        Import-Module -Name dbatools *> $null
+        Set-DbatoolsConfig -FullName Import.EncryptionMessageCheck -Value $false -Register
+        Set-DbatoolsConfig -FullName sql.connection.trustcert -Value $true -Register
     } catch {
         $message = "Setting up PowerShell failed: $_"
         $message | Add-Content -Path $logPath
