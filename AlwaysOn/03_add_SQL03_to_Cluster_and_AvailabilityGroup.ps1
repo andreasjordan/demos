@@ -131,18 +131,8 @@ $null = Remove-DbaAgReplica -SqlInstance $ag.Parent -AvailabilityGroup $Availabi
 $null = Get-DbaDatabase -SqlInstance $NewSqlInstance -Database $ag.AvailabilityDatabases.Name | Remove-DbaDatabase
 $null = Get-DbaEndpoint -SqlInstance $NewSqlInstance -Type DatabaseMirroring | Remove-DbaEndpoint -Confirm:$false
 
-$replicaParameters = @{
-    SqlInstance                   = $NewSqlInstance
-    AvailabilityMode              = $primaryReplica.AvailabilityMode
-    FailoverMode                  = $primaryReplica.FailoverMode
-    BackupPriority                = $primaryReplica.BackupPriority
-    ConnectionModeInPrimaryRole   = $primaryReplica.ConnectionModeInPrimaryRole
-    ConnectionModeInSecondaryRole = $primaryReplica.ConnectionModeInSecondaryRole
-    SeedingMode                   = 'Automatic'
-    ConfigureXESession            = $true
-}
-
 Write-PSFMessage -Level Host -Message 'Adding replica to Always On Availability Group with automatic seeding'
+$replicaParameters['SeedingMode'] = 'Automatic'
 $ag | Add-DbaAgReplica @replicaParameters | Format-Table
 
 # Wait for new replica to connect to Availability Group and for automatic seeding to move databases to new replica
