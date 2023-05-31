@@ -84,17 +84,6 @@ Write-PSFMessage -Level Host -Message 'Testing read only routing to use secondar
 Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadWrite | Format-Table
 Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadOnly | Format-Table
 
-Write-PSFMessage -Level Host -Message 'Failing over to other node'
-$null = Invoke-DbaAgFailover -SqlInstance $SqlInstances[1] -AvailabilityGroup $AvailabilityGroupName
-Start-Sleep -Seconds 1
-
-Write-PSFMessage -Level Host -Message 'Testing read only routing to use secondary for read only connections'
-Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadWrite | Format-Table
-Connect-DbaInstance -SqlInstance $AvailabilityGroupName -Database $DatabaseName -ApplicationIntent ReadOnly | Format-Table
-
-Write-PSFMessage -Level Host -Message 'Failing back again'
-$null = Invoke-DbaAgFailover -SqlInstance $SqlInstances[0] -AvailabilityGroup $AvailabilityGroupName
-
 
 Write-PSFMessage -Level Host -Message 'finished'
 
