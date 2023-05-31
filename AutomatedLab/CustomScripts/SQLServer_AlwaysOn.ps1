@@ -368,34 +368,6 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Installing PowerShell mod
     }
 }
 
-
-
-Stop-LabVM -All
-Start-Sleep -Seconds 10
-Checkpoint-VM -Name $LabName-* -SnapshotName Level0
-Start-LabVM -ComputerName DC -Wait ; Start-LabVM -All
-Start-Sleep -Seconds 30
-
-
-Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading demo repository' -ScriptBlock { 
-    $logPath = 'C:\DeployDebug\DownloadDemos.log'
-
-    $ErrorActionPreference = 'Stop'
-
-    try {
-        $null = New-Item -Path C:\GitHub -ItemType Directory
-
-        Invoke-WebRequest -Uri https://github.com/andreasjordan/demos/archive/refs/heads/master.zip -OutFile C:\GitHub\master.zip -UseBasicParsing
-        Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
-        Rename-Item C:\GitHub\demos-master -NewName demos
-        Remove-Item C:\GitHub\master.zip
-    } catch {
-        $message = "Downloading demo repository failed: $_"
-        $message | Add-Content -Path $logPath
-        Write-Warning -Message $message
-    }
-}
-
 Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading SQL Server CUs' -ScriptBlock { 
     $logPath = 'C:\DeployDebug\DownloadCUs.log'
 
@@ -424,6 +396,33 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Setting up CredSSP' -Scri
             }
     } catch {
         $message = "Setting up CredSSP failed: $_"
+        $message | Add-Content -Path $logPath
+        Write-Warning -Message $message
+    }
+}
+
+
+Stop-LabVM -All
+Start-Sleep -Seconds 10
+Checkpoint-VM -Name $LabName-* -SnapshotName Level0
+Start-LabVM -ComputerName DC -Wait ; Start-LabVM -All
+Start-Sleep -Seconds 30
+
+
+Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading demo repository' -ScriptBlock { 
+    $logPath = 'C:\DeployDebug\DownloadDemos.log'
+
+    $ErrorActionPreference = 'Stop'
+
+    try {
+        $null = New-Item -Path C:\GitHub -ItemType Directory
+
+        Invoke-WebRequest -Uri https://github.com/andreasjordan/demos/archive/refs/heads/master.zip -OutFile C:\GitHub\master.zip -UseBasicParsing
+        Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
+        Rename-Item C:\GitHub\demos-master -NewName demos
+        Remove-Item C:\GitHub\master.zip
+    } catch {
+        $message = "Downloading demo repository failed: $_"
         $message | Add-Content -Path $logPath
         Write-Warning -Message $message
     }
@@ -504,28 +503,41 @@ Start-LabVM -ComputerName DC -Wait ; Start-LabVM -All
 Start-Sleep -Seconds 30
 
 
+Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading demo repository' -ScriptBlock { 
+    $logPath = 'C:\DeployDebug\DownloadDemos.log'
 
-Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Create script for a test with PowerShell 7.3 and dbatools 2.0.0-prerelease' -ScriptBlock { 
-@'
-Get-ADComputer -Filter 'Name -like "SQL*"' |
-    ForEach-Object -Process { 
-        $null = Enable-WSManCredSSP -Role Client -DelegateComputer $_.Name -Force
-        $null = Enable-WSManCredSSP -Role Client -DelegateComputer $_.DNSHostName -Force
+    $ErrorActionPreference = 'Stop'
+
+    try {
+        Import-Module -Name Microsoft.PowerShell.Archive
+    } catch {
+        # See https://github.com/PowerShell/Microsoft.PowerShell.Archive/issues/59 for details
+        Copy-Item -Path C:\Windows\system32\WindowsPowerShell\v1.0\Modules\Microsoft.PowerShell.Archive\en-US\ArchiveResources.psd1 -Destination C:\Windows\system32\WindowsPowerShell\v1.0\Modules\Microsoft.PowerShell.Archive
+        Import-Module -Name Microsoft.PowerShell.Archive
     }
 
-Install-Module -Name dbatools -AllowPrerelease -Force
-Set-DbatoolsConfig -Name Import.EncryptionMessageCheck -Value $false -PassThru | Register-DbatoolsConfig
-Set-DbatoolsConfig -Name sql.connection.trustcert -Value $true -PassThru | Register-DbatoolsConfig
-Import-Module -Name dbatools -MinimumVersion 2.0.0
+    try {
+        $null = New-Item -Path C:\GitHub -ItemType Directory
 
-Set-Location -Path \\fs\Software\SQLServer\CU
-.\Get-CU.ps1
+        Invoke-WebRequest -Uri https://github.com/andreasjordan/demos/archive/refs/heads/master.zip -OutFile C:\GitHub\master.zip -UseBasicParsing
+        Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
+        Rename-Item C:\GitHub\demos-master -NewName demos
+        Remove-Item C:\GitHub\master.zip
+    } catch {
+        $message = "Downloading demo repository failed: $_"
+        $message | Add-Content -Path $logPath
+        Write-Warning -Message $message
+    }
+}
 
-$null = New-Item -Path C:\GitHub -ItemType Directory
-Invoke-WebRequest -Uri https://github.com/andreasjordan/demos/archive/refs/heads/master.zip -OutFile C:\GitHub\master.zip -UseBasicParsing
-Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
-Rename-Item C:\GitHub\demos-master -NewName demos
-Remove-Item C:\GitHub\master.zip
+
+Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Create script for a test with PowerShell 7' -ScriptBlock { 
+@'
+
+# Configure dbatools to suppress the message during import and to accept self-signed certificates:
+Import-Module -Name dbatools *> $null
+Set-DbatoolsConfig -FullName Import.EncryptionMessageCheck -Value $false -Register
+Set-DbatoolsConfig -FullName sql.connection.trustcert -Value $true -Register
 
 C:\GitHub\demos\AlwaysOn\00_setup_cluster.ps1
 
@@ -540,5 +552,29 @@ C:\GitHub\demos\AlwaysOn\03_add_SQL03_to_Cluster_and_AvailabilityGroup.ps1
 }
 
 
+vmconnect.exe localhost $LabName-ADMIN01
+
+
 # Open PowerShell 7 inside of ADMIN01 and run "C:\test.ps1"
 
+
+
+Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Add more databases to the Availability Group' -ScriptBlock { 
+    $SampleDatabasesPath = '\\fs\SampleDatabases'
+    $AvailabilityGroupName = 'AdventureSQL'
+    $DatabaseNames = 'TestDB01', 'TestDB02', 'TestDB03', 'TestDB04', 'TestDB05'
+
+    Import-Module -Name dbatools
+
+    $PSDefaultParameterValues['*-Dba*:EnableException'] = $true
+    $PSDefaultParameterValues['*-Dba*:Confirm'] = $false
+
+    $primaryReplica = (Get-DbaAvailabilityGroup -SqlInstance $AvailabilityGroupName -AvailabilityGroup $AvailabilityGroupName).PrimaryReplica
+    foreach ($databaseName in $DatabaseNames) {
+        $null = Restore-DbaDatabase -SqlInstance $AvailabilityGroupName -Path "$SampleDatabasesPath\AdventureWorks2017.bak" -DatabaseName $databaseName -ReplaceDbNameInFile
+        $null = Set-DbaDbOwner -SqlInstance $AvailabilityGroupName -Database $databaseName -TargetLogin sa
+        $null = Set-DbaDbRecoveryModel -SqlInstance $AvailabilityGroupName -Database $databaseName -RecoveryModel Full
+        $null = Backup-DbaDatabase -SqlInstance $AvailabilityGroupName -Database $databaseName
+    }
+    Add-DbaAgDatabase -SqlInstance $AvailabilityGroupName -AvailabilityGroup $AvailabilityGroupName -Database $DatabaseNames -SeedingMode Automatic | Format-Table
+}
