@@ -4,9 +4,8 @@ param (
     [string]$DomainController = 'DC',
     [string[]]$ClusterNodes = @('SQL01', 'SQL02'),
     [string[]]$SqlInstances = @('SQL01', 'SQL02'),
-    [string]$SQLServerServiceAccount = 'SQLServer',
+    [string]$SQLServerServiceAccount = 'gMSA-SQLServer',
     [SecureString]$AdminPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
-    [SecureString]$SqlPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
     [string]$SQLServerSourcesPath = '\\fs\Software\SQLServer\ISO',
     [string]$SQLServerPatchesPath = '\\fs\Software\SQLServer\CU',
     [string]$SampleDatabasesPath = '\\fs\SampleDatabases',
@@ -23,13 +22,11 @@ $PSDefaultParameterValues['*-Dba*:Confirm'] = $false
 
 try {
 
-$administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Admin", $AdminPassword
-$sqlServerCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\$SQLServerServiceAccount", $SqlPassword
+$administratorCredential = [PSCredential]::new("$DomainName\Admin", $AdminPassword)
+$sqlServerCredential = [PSCredential]::new("$DomainName\$SQLServerServiceAccount$", [SecureString]::new())
 
-if ( $null -eq (Get-ADUser -Filter "Name -eq '$SQLServerServiceAccount'") ) {
-    Write-PSFMessage -Level Host -Message 'Creating user for SQL Server service account and grant access to backup share'
-    New-ADUser -Name $SQLServerServiceAccount -AccountPassword $sqlServerCredential.Password -PasswordNeverExpires:$true -Enabled:$true
-    $null = Grant-SmbShareAccess -Name SQLServerBackups -AccountName "$DomainName\$SQLServerServiceAccount" -AccessRight Full -Force
+if ($null -eq (Get-ADServiceAccount -Filter "Name -eq '$SQLServerServiceAccount'") ) {
+    throw "Service Account '$SQLServerServiceAccount' for SQL Server not found. Creation of this account is not part of this script but done in https://github.com/andreasjordan/demos/blob/master/AutomatedLab/CustomScripts/SQLServer_AlwaysOn.ps1"
 }
 
 Write-PSFMessage -Level Host -Message 'Change powerplan of cluster nodes to high performance'
@@ -45,7 +42,6 @@ $installParams = @{
     EngineCredential   = $sqlServerCredential
     AgentCredential    = $sqlServerCredential
     AuthenticationMode = 'Mixed'
-    SaCredential       = $sqlServerCredential
     Credential         = $administratorCredential
     Restart            = $true
     EnableException    = $false

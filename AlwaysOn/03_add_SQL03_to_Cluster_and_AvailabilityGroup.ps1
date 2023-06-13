@@ -7,9 +7,8 @@ param (
     [string]$NewClusterNode = 'SQL03',
     [string]$NewSqlInstance = 'SQL03',
     [string]$ClusterName = 'CLUSTER1',
-    [string]$SQLServerServiceAccount = 'SQLServer',
+    [string]$SQLServerServiceAccount = 'gMSA-SQLServer',
     [SecureString]$AdminPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
-    [SecureString]$SqlPassword = (ConvertTo-SecureString -String 'P@ssw0rd' -AsPlainText -Force),
     [string]$SQLServerSourcesPath = '\\fs\Software\SQLServer\ISO',
     [string]$SQLServerPatchesPath = '\\fs\Software\SQLServer\CU',
     [string]$AvailabilityGroupName = 'AdventureSQL',
@@ -46,8 +45,8 @@ Get-ClusterNode -Cluster $ClusterName | Format-Table
 
 # Begin of code from 01_setup_instances.ps1
 
-$administratorCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\Admin", $AdminPassword
-$sqlServerCredential = New-Object -TypeName PSCredential -ArgumentList "$DomainName\$SQLServerServiceAccount", $SqlPassword
+$administratorCredential = [PSCredential]::new("$DomainName\Admin", $AdminPassword)
+$sqlServerCredential = [PSCredential]::new("$DomainName\$SQLServerServiceAccount$", [SecureString]::new())
 
 Write-PSFMessage -Level Host -Message 'Change powerplan of new cluster node to high performance'
 Set-DbaPowerPlan -ComputerName $NewClusterNode | Format-Table
@@ -62,7 +61,6 @@ $installParams = @{
     EngineCredential   = $sqlServerCredential
     AgentCredential    = $sqlServerCredential
     AuthenticationMode = 'Mixed'
-    SaCredential       = $sqlServerCredential
     Credential         = $administratorCredential
     Restart            = $true
     EnableException    = $false

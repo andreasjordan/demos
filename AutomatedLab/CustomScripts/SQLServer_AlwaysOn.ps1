@@ -124,6 +124,12 @@ $FileServerFolder = @(
     }
     @{
         Path  = 'FileServer\Backup'
+        Access = @(
+            @{
+                AccountName = 'SQLServiceAccounts'
+                AccessRight = 'Modify'
+            }
+        )
         Share = @{
             Name   = 'Backup'
             Access = @(
@@ -191,6 +197,7 @@ Invoke-LabCommand -ComputerName DC -ActivityName 'PrepareDomain' -DependencyFold
 
     Start-Transcript -Path C:\DeployDebug\PrepareDomain.log
 
+    Import-Module -Name KDS
     Import-Module -Name ActiveDirectory
     Import-Module -Name GroupPolicy
 
@@ -203,12 +210,6 @@ Invoke-LabCommand -ComputerName DC -ActivityName 'PrepareDomain' -DependencyFold
     Get-ADComputer -Filter 'Name -like "SQL*"' | Move-ADObject -TargetPath $sqlComputerOU.DistinguishedName
 
     $accountPassword = (ConvertTo-SecureString -String $Password -AsPlainText -Force)
-    New-ADUser -Name SQLServer -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
-    New-ADUser -Name SQLSrv1 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
-    New-ADUser -Name SQLSrv2 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
-    New-ADUser -Name SQLSrv3 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
-    New-ADUser -Name SQLSrv4 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
-    New-ADUser -Name SQLSrv5 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
     New-ADUser -Name SQLAdmin -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
     New-ADUser -Name SQLUser1 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
     New-ADUser -Name SQLUser2 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
@@ -216,13 +217,46 @@ Invoke-LabCommand -ComputerName DC -ActivityName 'PrepareDomain' -DependencyFold
     New-ADUser -Name SQLUser4 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
     New-ADUser -Name SQLUser5 -AccountPassword $accountPassword -Enabled $true -Path $sqlUserOU.DistinguishedName
 
-    New-ADGroup -Name SQLServiceAccounts -GroupCategory Security -GroupScope Global -Path $sqlUserOU.DistinguishedName
     New-ADGroup -Name SQLAdmins -GroupCategory Security -GroupScope Global -Path $sqlUserOU.DistinguishedName
     New-ADGroup -Name SQLUsers -GroupCategory Security -GroupScope Global -Path $sqlUserOU.DistinguishedName
 
-    Add-ADGroupMember -Identity SQLServiceAccounts -Members SQLServer, SQLSrv1, SQLSrv2, SQLSrv3, SQLSrv4, SQLSrv5
     Add-ADGroupMember -Identity SQLAdmins -Members SQLAdmin
     Add-ADGroupMember -Identity SQLUsers -Members SQLUser1, SQLUser2, SQLUser3, SQLUser4, SQLUser5
+
+
+    # Begin setup of gMSA for SQL Server
+
+    if (-not (Get-KdsRootKey)) {
+        $null = Add-KdsRootKey -EffectiveTime ([datetime]::Now).AddHours(-10)
+    }
+
+    $serviceAccountName        = 'gMSA-SQLServer'
+    $serviceAccountDescription = 'Group-managed service account for SQL Server'
+
+    $computerName              = (Get-ADComputer -Filter 'Name -like "SQL*"').Name
+    $computerAccountName       = $computerName | ForEach-Object { $_ + '$' }
+    $serviceAccountDNSHostName = "$serviceAccountName.$((Get-ADDomain).DNSRoot)"
+    $serviceAccountUsername    = "$((Get-ADDomain).NetBIOSName.ToUpper())\$serviceAccountName" + '$'
+
+    $adServiceAccountParams = @{
+        Path                                       = $sqlUserOU.DistinguishedName
+        Name                                       = $serviceAccountName
+        Description                                = $serviceAccountDescription
+        DNSHostName                                = $serviceAccountDNSHostName
+        PrincipalsAllowedToRetrieveManagedPassword = $computerAccountName
+        Enabled                                    = $true
+    }
+
+    $serviceAcccount = New-ADServiceAccount @adServiceAccountParams -PassThru
+    $null = dsacls $serviceAcccount.DistinguishedName /G "SELF:RPWP;servicePrincipalName"
+
+    New-ADGroup -Name SQLServiceAccounts -GroupCategory Security -GroupScope Global -Path $sqlUserOU.DistinguishedName
+    Add-ADGroupMember -Identity SQLServiceAccounts -Members (Get-ADServiceAccount -Identity $serviceAccountName)
+
+    Restart-Computer -ComputerName $computerName -Force
+
+    # End setup of gMSA for SQL Server
+
 
     $target = (Get-ADDomain).DistinguishedName
     foreach ($gpo in Get-ChildItem -Path C:\GPOs -Directory) {
@@ -261,13 +295,31 @@ foreach ($folder in $FileServerFolder) {
         Copy-LabFileItem -ComputerName DC -Path "$($folder.CopyFolder)\*" -DestinationFolderPath "C:\$($folder.Path)" -Recurse
     }
 
+    if ($folder.Access) {
+        Invoke-LabCommand -ComputerName DC -ActivityName 'PrepareFileserver' -ArgumentList $folder.Path, $folder.Access -ScriptBlock { 
+            param($Path, $Access)
+            foreach ($acc in $Access) {
+                $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+                    "$domainName\$($acc.AccountName)",
+                    $acc.AccessRight,
+                    [System.Security.AccessControl.InheritanceFlags]::ContainerInherit + [System.Security.AccessControl.InheritanceFlags]::ObjectInherit,
+                    [System.Security.AccessControl.PropagationFlags]::None,
+                    'Allow'
+                )
+                $acl = Get-Acl -Path "C:\$Path"
+                $acl.SetAccessRule($accessRule)
+                Set-Acl -Path "C:\$Path" -AclObject $acl
+            }
+        }
+    }
+
     if ($folder.Share) {
         Invoke-LabCommand -ComputerName DC -ActivityName 'PrepareFileserver' -ArgumentList $folder.Path, $folder.Share -ScriptBlock { 
             param($Path, $Share)
             $domainName = (Get-ADDomain).NetBIOSName
             $null = New-SmbShare -Path "C:\$Path" -Name $Share.Name
             foreach ($access in $Share.Access) {
-                $null = Grant-SmbShareAccess -Name $Share.Name -AccountName "$domainName\$($access.AccountName)" -AccessRight $($access.AccessRight) -Force
+                $null = Grant-SmbShareAccess -Name $Share.Name -AccountName "$domainName\$($access.AccountName)" -AccessRight $access.AccessRight -Force
             }
         }
     }
@@ -421,6 +473,15 @@ Invoke-LabCommand -ComputerName ADMIN01 -ActivityName 'Downloading demo reposito
         Expand-Archive -Path C:\GitHub\master.zip -DestinationPath C:\GitHub
         Rename-Item C:\GitHub\demos-master -NewName demos
         Remove-Item C:\GitHub\master.zip
+
+        Invoke-WebRequest -Uri https://github.com/dataplat/dbatools/archive/refs/heads/development.zip -OutFile C:\GitHub\development.zip -UseBasicParsing
+        Expand-Archive -Path C:\GitHub\development.zip -DestinationPath C:\GitHub
+        Rename-Item C:\GitHub\dbatools-development -NewName dbatools
+        Remove-Item C:\GitHub\development.zip
+
+        Invoke-WebRequest -Uri https://github.com/dataplat/dbatools/archive/refs/tags/v2.0.4.zip -OutFile C:\GitHub\release.zip -UseBasicParsing
+        Expand-Archive -Path C:\GitHub\release.zip -DestinationPath C:\GitHub
+        Remove-Item C:\GitHub\release.zip
     } catch {
         $message = "Downloading demo repository failed: $_"
         $message | Add-Content -Path $logPath
