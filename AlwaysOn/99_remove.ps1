@@ -51,7 +51,7 @@ foreach ($inst in $sqlInstances) {
     } catch {
         # Fallback to information about the service
         $service = Get-DbaService -ComputerName $inst.ComputerName -InstanceName $inst.InstanceName -Type Engine -EnableException
-        $instanceVersion = switch ($service.BinaryPath -replace '^.*MSSQL(\d\d).*$', '$1') { 15 { 2019 } 14 { 2017 } 13 { 2016 } 12 { 2014 } 11 { 2012 } }
+        $instanceVersion = switch ($service.BinaryPath -replace '^.*MSSQL(\d\d).*$', '$1') { 16 { 2022 } 15 { 2019 } 14 { 2017 } 13 { 2016 } 12 { 2014 } 11 { 2012 } }
         $instancePath = $service.BinaryPath -replace '^"?(.*)MSSQL\\Binn\\sqlservr\.exe.*$', '$1'
     }
     $params = @{
