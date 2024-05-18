@@ -1,5 +1,6 @@
 ﻿[CmdletBinding()]
 param (
+    [string[]]$ClusterNodes = @('SQL01', 'SQL02'),
     [string[]]$SqlInstances = @('SQL01', 'SQL02'),
     [string]$BackupPath = '\\fs\Backup',
     [string]$DatabaseName = 'AdventureWorks',
