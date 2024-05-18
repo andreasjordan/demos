@@ -46,9 +46,10 @@ $installParams = @{
     Restart            = $true
     EnableException    = $false
 }
-$installResult = Install-DbaInstance @installParams
+$installResult = @( )
+$installResult += Install-DbaInstance @installParams
 $installResult | Format-Table
-if ($false -in $installResult.Successful) {
+if ($installResult.Count -lt $SqlInstances.Count -or $false -in $installResult.Successful) {
     throw "Install-DbaInstance not successful"
 }
 
