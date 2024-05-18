@@ -16,6 +16,9 @@ try {
 Write-PSFMessage -Level Host -Message 'Install cluster feature on each node'
 Invoke-Command -ComputerName $ClusterNodes -ScriptBlock { Install-WindowsFeature -Name Failover-Clustering -IncludeManagementTools } | Format-Table
 
+Write-PSFMessage -Level Host -Message 'Install cluster admin tools on local computer'
+Install-WindowsFeature -Name RSAT-Clustering | Format-Table
+
 Write-PSFMessage -Level Host -Message 'Run cluster test'
 $clusterTest = Test-Cluster -Node $ClusterNodes
 Write-PSFMessage -Level Host -Message "Result of cluster test is available at: $($clusterTest.FullName)"
