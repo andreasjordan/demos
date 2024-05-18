@@ -38,6 +38,25 @@ if ($EndpointUrls.Count -gt 0) {
     $availabilityGroupParameters['EndpointUrl'] = $EndpointUrls
 }
 
+Write-PSFMessage -Level Host -Message 'Add firewall rule for endpoint'
+$firewallConfig = @{
+    DisplayName = 'SQL Server HADR endpoint'
+    Name        = 'SQL Server HADR endpoint'
+    Group       = 'SQL Server'
+    Enabled     = 'True'
+    Direction   = 'Inbound'
+    Protocol    = 'TCP'
+    LocalPort   = '5022'
+}
+if ($EndpointUrls.Count -gt 0) {
+    # All ports should be the same, so we only take the frist one.
+    $firewallConfig.LocalPort = $EndpointUrls[0] -replace '^.*:(\d+)$', '$1'
+}
+Invoke-Command -ComputerName $ClusterNodes -ArgumentList $firewallConfig -ScriptBlock {
+    Param ($FirewallRuleParameters)
+    $null = New-NetFirewallRule @FirewallRuleParameters 
+}
+
 Write-PSFMessage -Level Host -Message 'Create Always On Availability Group with automatic seeding'
 $availabilityGroupParameters['SeedingMode'] = 'Automatic'
 New-DbaAvailabilityGroup @availabilityGroupParameters | Format-Table
