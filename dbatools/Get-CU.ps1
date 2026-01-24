@@ -27,13 +27,10 @@ function Get-CU {
             '2014' { '^12.0.6' }  # Based on SP3
         }
     }
-    if ($Version -eq '2019') { 
-        $Exclude += 'CU7'  # CU7 is not available any more
-    }
     $buildrefFile = Join-Path -Path (Get-DbatoolsConfigValue -Name 'Path.DbatoolsData') -ChildPath "dbatools-buildref-index.json"
     $buildrefData = (Get-Content -Path $buildrefFile -Raw | ConvertFrom-Json).Data
     $cuData = $buildrefData | 
-        Where-Object -FilterScript { $_.Version -match $BuildBaseRegex -and $_.CU -ne $null -and $_.CU -notin $Exclude } |
+        Where-Object -FilterScript { $_.Version -match $BuildBaseRegex -and $_.CU -ne $null -and $_.CU -notin $Exclude -and -not $_.Retired } |
         Sort-Object -Property KBList |
         Select-Object -Last $Last
     foreach ($cu in $cuData) {
