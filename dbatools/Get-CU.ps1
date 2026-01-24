@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param (
-    [ValidateSet('2022', '2019', '2017', '2016', '2014')]
-    [string[]]$Version = @('2022', '2019', '2017'),
+    [ValidateSet('2025', '2022', '2019', '2017', '2016', '2014')]
+    [string[]]$Version = @('2025', '2022', '2019'),
     [int]$Last = 1,
     [string]$Path = '.',
     [switch]$UpdateBuildReference = $true
@@ -10,7 +10,7 @@ param (
 function Get-CU {
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('2022', '2019', '2017', '2016', '2014')]
+        [ValidateSet('2025', '2022', '2019', '2017', '2016', '2014')]
         [string]$Version,
         [regex]$BuildBaseRegex,
         [int]$Last = 1,
@@ -19,6 +19,7 @@ function Get-CU {
     )
     if ($null -eq $BuildBaseRegex) {
         $BuildBaseRegex = switch ($Version) {
+            '2025' { '^17' }
             '2022' { '^16' }
             '2019' { '^15' }
             '2017' { '^14' }
