@@ -31,7 +31,6 @@ function Get-CU {
     $buildrefData = (Get-Content -Path $buildrefFile -Raw | ConvertFrom-Json).Data
     $cuData = $buildrefData | 
         Where-Object -FilterScript { $_.Version -match $BuildBaseRegex -and $_.CU -ne $null -and $_.CU -notin $Exclude -and -not $_.Retired } |
-        Sort-Object -Property KBList |
         Select-Object -Last $Last
     foreach ($cu in $cuData) {
         $kbNr = $cu.KBList
