@@ -48,7 +48,6 @@ Import-Module -Name dbatools 6> $null
 
 if ($UpdateBuildReference) {
     Write-Progress -Activity "Downloading Cumulative Updates for SQL Server" -Status "Updating build reference"
-    Set-DbatoolsConfig -FullName assets.sqlbuildreference -Value https://raw.githubusercontent.com/dataplat/dbatools/refs/heads/development/bin/dbatools-buildref-index.json
     Update-DbaBuildReference
 }
 
